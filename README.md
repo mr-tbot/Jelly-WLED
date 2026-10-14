@@ -29,12 +29,17 @@ Because the server does the analysis, it works with every Jellyfin client unchan
 
 ### From this repository's manifest (recommended once published)
 
-1. In the Jellyfin dashboard open **Plugins > Repositories** and add the manifest URL (see `dist/manifest.json` after a release; a hosted URL will be listed here when the repository is published).
+1. In the Jellyfin dashboard open **Plugins > Repositories** and add this manifest URL:
+
+   ```
+   https://raw.githubusercontent.com/mr-tbot/Jelly-WLED/main/manifest.json
+   ```
+
 2. Open **Plugins > Catalog**, install **Jelly-WLED**, and restart Jellyfin.
 
 ### Manual
 
-1. Download or build `jelly-wled_<version>.zip` (see *Build from source*).
+1. Download `jelly-wled_<version>.zip` from the [releases page](https://github.com/mr-tbot/Jelly-WLED/releases) or build it (see *Build from source*).
 2. Unzip it into your Jellyfin plugins directory as `Jelly-WLED_<version>/` (for example `/config/plugins/Jelly-WLED_1.0.0.0/` in Docker, `/var/lib/jellyfin/plugins/` on Linux packages). The folder must contain `Jellyfin.Plugin.JellyWled.dll` and `meta.json`.
 3. Restart Jellyfin. The plugin appears under **Dashboard > Plugins > My Plugins**.
 
