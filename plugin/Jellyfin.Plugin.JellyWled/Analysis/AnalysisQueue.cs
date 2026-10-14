@@ -197,7 +197,7 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
                     Progress?.Invoke(job);
                     if (job.RetargetFromMs is { } retarget && !stopping.IsCancellationRequested)
                     {
-                        Enqueue(job.ItemId, job.MediaSourceId, retarget, "seek");
+                        Enqueue(job.ItemId, job.MediaSourceId, retarget, job.State == "done" ? "backfill" : "seek");
                     }
                 }
             }
@@ -269,9 +269,10 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
             _logger.LogInformation("[JellyWled] Analyzed {Name}: {Frames} frames from frame {Start}", source.Name, frames, startFrame);
 
             // Playback started mid-file: fill in the beginning afterwards so the next play is complete.
+            // The follow-up is queued by the worker once this job's key is released (Enqueue would dedupe it now).
             if (startFrame > 0 && !segments.Any(s => s.IsFinalized && s.StartFrame == 0))
             {
-                Enqueue(job.ItemId, job.MediaSourceId, 0, "backfill");
+                job.RetargetFromMs ??= 0;
             }
         }
         catch (OperationCanceledException)

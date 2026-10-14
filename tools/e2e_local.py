@@ -87,6 +87,9 @@ def main():
     ap.add_argument("--csv", required=True, help="the simulator's --csv file")
     ap.add_argument("--play-seconds", type=int, default=45)
     ap.add_argument("--start-ms", type=int, default=0, help="playback start position in ms")
+    ap.add_argument("--seek-after", type=float, default=0, help="seconds into playback at which the fake client seeks (0 = no seek)")
+    ap.add_argument("--seek-to-ms", type=int, default=0, help="position the fake client seeks to")
+    ap.add_argument("--delete-track", action="store_true", help="delete the item's track first (tests on-demand analysis)")
     ap.add_argument("--user", default="jellywled")
     ap.add_argument("--password", default="jellywled")
     args = ap.parse_args()
@@ -139,6 +142,10 @@ def main():
         return 2
     log("item %s (%s) runtime %s ticks" % (item["Name"], item["Id"], item.get("RunTimeTicks")))
 
+    if args.delete_track:
+        status, _ = api.call("DELETE", "/JellyWled/Track/%s" % item["Id"])
+        log("deleted track -> %s" % status)
+
     status, cfg = api.call("GET", "/Plugins/%s/Configuration" % PLUGIN_ID)
     if status != 200:
         log("plugin configuration not readable: %s %s (is the plugin loaded?)" % (status, cfg))
@@ -170,8 +177,19 @@ def main():
     start = dict(base, PositionTicks=args.start_ms * 10000)
     status, _ = api.call("POST", "/Sessions/Playing", start)
     log("PlaybackStart -> %s" % status)
+    seek_wall = None  # monotonic time of the seek, if any
+    seeked = False
     while time.monotonic() - t0 < args.play_seconds:
-        pos_ms = args.start_ms + int((time.monotonic() - t0) * 1000)
+        elapsed = time.monotonic() - t0
+        if args.seek_after and not seeked and elapsed >= args.seek_after:
+            seeked = True
+            seek_wall = time.monotonic()
+            api.call("POST", "/Sessions/Playing/Progress", dict(base, PositionTicks=args.seek_to_ms * 10000, EventName="TimeUpdate"))
+            log("seek -> %d ms" % args.seek_to_ms)
+        if seeked:
+            pos_ms = args.seek_to_ms + int((time.monotonic() - seek_wall) * 1000)
+        else:
+            pos_ms = args.start_ms + int(elapsed * 1000)
         api.call("POST", "/Sessions/Playing/Progress", dict(base, PositionTicks=pos_ms * 10000, EventName="TimeUpdate"))
         time.sleep(3)
         status, st = api.call("GET", "/JellyWled/Status")
@@ -186,6 +204,7 @@ def main():
     # Evaluate the simulator CSV: rows after t0 (unix ms) -> side colors vs schedule. Columns:
     # unix_ms, frame_index, led_count, top r g b, right r g b, bottom r g b, left r g b, led0 r g b
     wall_t0 = time.time() - (t_end - t0) - 2
+    wall_seek = None if seek_wall is None else wall_t0 + (seek_wall - t0)
     rows = []
     with open(args.csv, newline="") as fh:
         for row in csv.reader(fh):
@@ -200,7 +219,13 @@ def main():
     checked = ok = 0
     first_good = None
     for r in rows:
-        t = (r[0] / 1000.0 - wall_t0) + args.start_ms / 1000.0
+        wall = r[0] / 1000.0
+        if wall_seek is not None and wall >= wall_seek:
+            t = (wall - wall_seek) + args.seek_to_ms / 1000.0
+            if wall - wall_seek < 1.5:
+                continue  # the seek itself takes a report to arrive
+        else:
+            t = (wall - wall_t0) + args.start_ms / 1000.0
         # Skip the first second after every color change (smoothing and report granularity).
         if t % 10 < 1.0 or t % 10 > 9.0:
             continue
