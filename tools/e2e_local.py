@@ -121,6 +121,8 @@ def main():
                              {"LibraryOptions": {"PathInfos": [{"Path": args.fixtures}], "EnableRealtimeMonitor": False,
                                                  "EnableInternetProviders": False, "SaveLocalMetadata": False}})
         log("library add -> %s" % status)
+        time.sleep(2)
+        api.call("POST", "/Library/Refresh")  # the refresh that comes with the add can race the new path
     else:
         api.call("POST", "/Library/Refresh")
 
