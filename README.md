@@ -9,7 +9,7 @@ Jelly-WLED is two pieces that share one protocol:
 
 Because the server does the analysis, it works with every Jellyfin client unchanged: Android TV, Android, web, iOS, Roku, Kodi. The clients only need to report playback progress, which they already do.
 
-> Status: first release (October 2026). The plugin targets Jellyfin 12.x and has been run against a real server and real WLED hardware; the Android app has been tested on a phone and an Android TV emulator. Read the troubleshooting section when something does not light up.
+> Status: first release (October 2026). The plugin targets Jellyfin 12.x and has been run against a real server and real WLED hardware; the Android app has been tested end to end on a phone against the real plugin (25 frames per second, in sync through a seek) and for remote navigation on an Android TV emulator. Read the troubleshooting section when something does not light up.
 
 ## How it works
 
