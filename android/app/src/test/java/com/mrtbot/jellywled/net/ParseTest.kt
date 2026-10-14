@@ -10,7 +10,7 @@ class ParseTest {
     @Test
     fun parsesAStateEvent() {
         val json = """{"sessionId":"abc","deviceId":"dev-1","deviceName":"Living Room","client":"Android TV","userId":"6f1c3d9e-2b4a-4c1e-9d3f-0a1b2c3d4e5f","userName":"tbot","itemId":"0a0b0c0d-0000-0000-0000-000000000001","itemName":"Movie","mediaSourceId":null,"runTimeTicks":72000000000,"positionTicks":600000000,"reportedAtMs":1760000000000,"isPaused":false,"track":{"state":"complete","frames":72000,"expectedFrames":72000,"fps":10,"ringW":32,"ringH":18,"segments":[],"analyzing":null}}"""
-        val e = JellyfinClient.parseEvent("state", json, 5, null) as GlowEvent.State
+        val e = JellyfinClient.parseEvent("state", json, 5) as GlowEvent.State
         val s = e.state
         assertEquals("dev-1", s.deviceId)
         assertEquals("Movie", s.itemName)
@@ -25,16 +25,15 @@ class ParseTest {
 
     @Test
     fun parsesHelloPingAndStopped() {
-        val hello = JellyfinClient.parseEvent("hello", """{"serverTimeMs":1000,"pluginVersion":"1.0.0.0","analysisFps":10,"ringW":32,"ringH":18}""", 900, 40) as GlowEvent.Hello
+        val hello = JellyfinClient.parseEvent("hello", """{"serverTimeMs":1000,"pluginVersion":"1.0.0.0","analysisFps":10,"ringW":32,"ringH":18}""", 900) as GlowEvent.Hello
         assertEquals(1000L, hello.serverTimeMs)
         assertEquals(900L, hello.receivedAtMs)
-        assertEquals(40L, hello.rttMs)
         assertEquals(32, hello.ringW)
-        val ping = JellyfinClient.parseEvent("ping", """{"serverTimeMs":2000}""", 1950, null) as GlowEvent.Ping
+        val ping = JellyfinClient.parseEvent("ping", """{"serverTimeMs":2000}""", 1950) as GlowEvent.Ping
         assertEquals(2000L, ping.serverTimeMs)
-        val stopped = JellyfinClient.parseEvent("stopped", """{"sessionId":"abc","deviceId":"dev-1"}""", 0, null) as GlowEvent.Stopped
+        val stopped = JellyfinClient.parseEvent("stopped", """{"sessionId":"abc","deviceId":"dev-1"}""", 0) as GlowEvent.Stopped
         assertEquals("abc", stopped.sessionId)
-        assertNull(JellyfinClient.parseEvent("unknown", "{}", 0, null))
+        assertNull(JellyfinClient.parseEvent("unknown", "{}", 0))
     }
 
     @Test
