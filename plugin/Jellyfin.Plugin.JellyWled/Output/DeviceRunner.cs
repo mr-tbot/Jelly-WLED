@@ -22,6 +22,7 @@ public sealed class DeviceRunner : IDisposable
     private readonly TrackStore _store;
     private readonly WledHttpClient _wled;
     private readonly ILogger _logger;
+    private readonly Action<PlaybackState>? _onMissingFrame;
     private readonly object _lock = new();
     private readonly Queue<long> _sent = new();
     private WledDevice _device;
@@ -36,6 +37,8 @@ public sealed class DeviceRunner : IDisposable
     private byte[] _current = [];
     private DdpSender? _sender;
     private (string Pattern, DateTime Until, DateTime Started)? _test;
+    private string? _followingSessionId;
+    private DateTime _lastMissReport = DateTime.MinValue;
     private Task? _loop;
     private CancellationTokenSource? _cts;
     private bool _active;
@@ -48,8 +51,10 @@ public sealed class DeviceRunner : IDisposable
     /// <param name="store">Track store.</param>
     /// <param name="wled">WLED HTTP client.</param>
     /// <param name="logger">Logger.</param>
-    public DeviceRunner(WledDevice device, SessionTracker tracker, TrackStore store, WledHttpClient wled, ILogger logger)
+    /// <param name="onMissingFrame">Called (at most every 10 s) when the followed session has no frame at its position.</param>
+    public DeviceRunner(WledDevice device, SessionTracker tracker, TrackStore store, WledHttpClient wled, ILogger logger, Action<PlaybackState>? onMissingFrame = null)
     {
+        _onMissingFrame = onMissingFrame;
         _device = device;
         _tracker = tracker;
         _store = store;
@@ -177,7 +182,7 @@ public sealed class DeviceRunner : IDisposable
                 EnsureLayout(device);
                 fps = Math.Clamp(device.Fps, 1, 60);
                 var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-                var analysisFps = Math.Clamp(cfg.AnalysisFps, 1, 60);
+                var analysisFps = cfg.EffectiveFps;
 
                 if (test is not null)
                 {
@@ -193,7 +198,11 @@ public sealed class DeviceRunner : IDisposable
                 }
                 else
                 {
-                    var session = _tracker.Active.Where(s => Matches(device, s)).OrderByDescending(s => s.ReportedAtStopwatch).FirstOrDefault();
+                    // Stick with the session being followed while it is still playing; otherwise take the newest match.
+                    var matching = _tracker.Active.Where(s => Matches(device, s)).ToList();
+                    var session = matching.FirstOrDefault(s => s.SessionId == _followingSessionId)
+                        ?? matching.OrderByDescending(s => s.ReportedAtStopwatch).FirstOrDefault();
+                    _followingSessionId = session?.SessionId;
                     if (session is null)
                     {
                         if (_active)
@@ -220,6 +229,11 @@ public sealed class DeviceRunner : IDisposable
                     else
                     {
                         Array.Clear(_raw);
+                        if (DateTime.UtcNow - _lastMissReport > TimeSpan.FromSeconds(10))
+                        {
+                            _lastMissReport = DateTime.UtcNow;
+                            _onMissingFrame?.Invoke(session); // let the manager queue analysis for an uncovered stretch
+                        }
                     }
 
                     _pipeline!.Process(_raw, _active ? _previous : [], _current);
@@ -272,7 +286,7 @@ public sealed class DeviceRunner : IDisposable
     private void EnsureLayout(WledDevice device)
     {
         var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        var key = string.Join('|', device.LedsTop, device.LedsRight, device.LedsBottom, device.LedsLeft, device.StartCorner, device.Direction, device.Mode, device.Brightness, device.Saturation, device.Gamma, device.Smoothing, cfg.RingWidth, cfg.RingHeight, device.Host, device.DdpPort);
+        var key = string.Join('|', device.LedsTop, device.LedsRight, device.LedsBottom, device.LedsLeft, device.StartCorner, device.Direction, device.Mode, device.Brightness, device.Saturation, device.Gamma, device.Smoothing, cfg.EffectiveRingWidth, cfg.EffectiveRingHeight, device.Host, device.DdpPort);
         if (key == _layoutKey && _mapper is not null)
         {
             return;
@@ -280,7 +294,7 @@ public sealed class DeviceRunner : IDisposable
 
         _layoutKey = key;
         _layout = RingLayout.Build(device.LedsTop, device.LedsRight, device.LedsBottom, device.LedsLeft, device.StartCorner, device.Direction);
-        _mapper = new LedMapper(_layout, cfg.RingWidth, cfg.RingHeight, string.Equals(device.Mode, "average", StringComparison.OrdinalIgnoreCase));
+        _mapper = new LedMapper(_layout, cfg.EffectiveRingWidth, cfg.EffectiveRingHeight, string.Equals(device.Mode, "average", StringComparison.OrdinalIgnoreCase));
         _pipeline = new ColorPipeline(device.Saturation, device.Gamma, device.Brightness, device.Smoothing);
         _ring = new byte[_mapper.ZoneCount * 3];
         _raw = new byte[_layout.Length * 3];

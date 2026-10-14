@@ -52,7 +52,8 @@ Open **Dashboard > Plugins > Jelly-WLED**. Every option is on that page; the sam
 | Brightness, Color richness, Gamma, Smoothing, Frames per second | The color pipeline. Defaults 60 %, 120 %, 2.2, 35 %, 25. |
 | Sync offset | Milliseconds added to the playback position (positive = lights earlier). |
 | Follow | Which Jellyfin devices (or users, or all sessions) this strip follows. |
-| Restore state | Put WLED back to its previous on/off and brightness when playback stops. |
+| Leave live mode when playback stops | Tell WLED to return to its own effect right away (otherwise it does so after its realtime timeout, 2.5 s by default). WLED lights an "off" strip at its last brightness while live data arrives and turns it off again afterwards. |
+| Mode | *Edges follow the picture* for a strip around the TV; *average color* for lamps and light bars elsewhere in the room. Add as many nodes as you like. |
 
 **Analysis**: frames per second (10), ring size (32x18), edge band depth (8 %), letterbox detection, analyze on playback (on), ffmpeg threads and priority, cache location, and what the scheduled task covers (libraries, movies, episodes, items per run).
 
@@ -88,12 +89,21 @@ cd android
 `tools/ddp_sim.py` is a WLED stand-in: it listens for DDP on UDP 4048, answers `/json/info` and `/json/state` on an HTTP port, and prints the average color per edge every second.
 
 ```bash
-python3 tools/ddp_sim.py --top 32 --right 18 --bottom 32 --left 18 --http-port 8080
+python3 tools/ddp_sim.py --top 32 --right 18 --bottom 32 --left 18 --http-port 8089 --port 4049 --csv /tmp/sim.csv
 tools/make_fixtures.sh                # generates short test videos with known edge colors
-tools/local_jellyfin.sh up            # Jellyfin 12.1 in Docker with the plugin and fixtures
+tools/local_jellyfin.sh up            # Jellyfin 12.1 in Docker with the plugin and fixtures, or:
+tools/local_jellyfin_native.sh install jellyfin_12.1-amd64.tar.xz   # portable build from repo.jellyfin.org
+tools/local_jellyfin_native.sh up     # runs it on port 8096 with dist/plugin as Jelly-WLED_dev
 ```
 
-Point a device at the machine running the simulator (host = its IP, HTTP port 8080), play a fixture, and watch the printed colors follow the schedule in `tools/make_fixtures.sh`.
+`tools/e2e_local.py` then does the whole loop without a real player: it completes the setup wizard, adds the fixtures library, configures one device aimed at the simulator, starts a fake playback session (progress reports every 3 s like the Android TV app), and checks the simulator's CSV against the fixtures' color schedule. It has flags for a mid-file start, a seek, and deleting the track first to exercise on-demand analysis:
+
+```bash
+python3 tools/e2e_local.py --server http://127.0.0.1:8096 --fixtures "$PWD/tools/fixtures/movies" \
+    --sim-host 127.0.0.1 --sim-ddp 4049 --sim-http 8089 --csv /tmp/sim.csv --seek-after 8 --seek-to-ms 40000
+```
+
+With real hardware, point a device at the WLED controller instead, play anything, and use **Show sides** to check the layout.
 
 ## Architecture
 

@@ -68,22 +68,23 @@ public sealed partial class FfmpegAnalyzer
     /// <param name="endFrame">Frame index to stop at (exclusive), or null for the end of the file.</param>
     /// <param name="progress">Called with frames written so far.</param>
     /// <param name="cancellationToken">Cancellation.</param>
+    /// <param name="knownCrop">A crop already stored in the item's other segments, to skip detection.</param>
     /// <returns>The number of frames written.</returns>
-    public async Task<long> AnalyzeAsync(ResolvedSource source, TrackStore store, long startFrame, long? endFrame, Action<long>? progress, CancellationToken cancellationToken)
+    public async Task<long> AnalyzeAsync(ResolvedSource source, TrackStore store, long startFrame, long? endFrame, Action<long>? progress, CancellationToken cancellationToken, CropInfo? knownCrop = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(store);
         var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        var fps = Math.Clamp(cfg.AnalysisFps, 1, 60);
-        var width = Math.Clamp(cfg.RingWidth, 4, 128);
-        var height = Math.Clamp(cfg.RingHeight, 3, 72);
+        var fps = cfg.EffectiveFps;
+        var width = cfg.EffectiveRingWidth;
+        var height = cfg.EffectiveRingHeight;
         var bandPercent = Math.Clamp(cfg.BandPercent, 1, 50);
         var band = Math.Max(1, (int)Math.Round(bandPercent / 100.0 * height));
 
         var fileInfo = new FileInfo(source.Path);
-        var crop = cfg.DetectLetterbox
+        var crop = knownCrop ?? (cfg.DetectLetterbox
             ? await DetectCropAsync(source.Path, source.RunTimeTicks, cancellationToken).ConfigureAwait(false)
-            : CropInfo.None;
+            : CropInfo.None);
 
         var header = new SegmentHeader
         {
@@ -175,6 +176,25 @@ public sealed partial class FfmpegAnalyzer
             progress?.Invoke(frames);
             return frames;
         }
+        catch (OperationCanceledException) when (frames > 0)
+        {
+            // Canceled by a seek or shutdown: the frames produced so far are valid, keep them.
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // already gone
+            }
+
+            writer.Complete();
+            progress?.Invoke(frames);
+            throw;
+        }
         catch
         {
             writer.Abort();
@@ -212,7 +232,7 @@ public sealed partial class FfmpegAnalyzer
         foreach (var t in points)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var args = new List<string> { "-nostdin", "-v", "info", "-ss", t.ToString("F2", CultureInfo.InvariantCulture), "-i", path, "-an", "-sn", "-dn", "-t", "1.5", "-vf", "cropdetect=24:2:0", "-f", "null", "-" };
+            var args = new List<string> { "-nostdin", "-v", "info", "-ss", t.ToString("F2", CultureInfo.InvariantCulture), "-i", path, "-an", "-sn", "-dn", "-t", "1.5", "-vf", "cropdetect=limit=0.094:round=2:reset=0", "-f", "null", "-" };
             try
             {
                 using var process = StartFfmpeg(args, lowPriority: true, redirectStdout: false);

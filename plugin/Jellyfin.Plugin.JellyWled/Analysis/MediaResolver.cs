@@ -31,16 +31,18 @@ public sealed class MediaResolver
     /// </summary>
     /// <param name="itemId">Item id.</param>
     /// <param name="mediaSourceId">Preferred media source id, or null.</param>
+    /// <param name="user">The requesting user, to hide items and alternate versions they may not see; null for the server itself.</param>
     /// <returns>The resolved source, or null when the item is missing or not a local file.</returns>
-    public ResolvedSource? Resolve(Guid itemId, string? mediaSourceId)
+    public ResolvedSource? Resolve(Guid itemId, string? mediaSourceId, Jellyfin.Database.Implementations.Entities.User? user = null)
     {
-        var item = _libraryManager.GetItemById<BaseItem>(itemId);
+        var item = user is null ? _libraryManager.GetItemById<BaseItem>(itemId) : _libraryManager.GetItemById<BaseItem>(itemId, user);
         if (item is not Video)
         {
             return null;
         }
 
-        var sources = _mediaSourceManager.GetStaticMediaSources(item, false);
+        mediaSourceId = Tracks.TrackStore.NormalizeMediaSourceId(mediaSourceId);
+        var sources = _mediaSourceManager.GetStaticMediaSources(item, false, user);
         MediaSourceInfo? source = null;
         foreach (var s in sources)
         {
@@ -66,6 +68,7 @@ public sealed class MediaResolver
             return null;
         }
 
-        return new ResolvedSource(itemId, source.Id ?? itemId.ToString("N", System.Globalization.CultureInfo.InvariantCulture), source.Path, source.RunTimeTicks ?? item.RunTimeTicks ?? 0, item.Name ?? itemId.ToString());
+        var id = Tracks.TrackStore.NormalizeMediaSourceId(source.Id) ?? itemId.ToString("N", System.Globalization.CultureInfo.InvariantCulture);
+        return new ResolvedSource(itemId, id, source.Path, source.RunTimeTicks ?? item.RunTimeTicks ?? 0, item.Name ?? itemId.ToString());
     }
 }

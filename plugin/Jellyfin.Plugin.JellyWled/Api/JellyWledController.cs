@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.JellyWled.Analysis;
 using Jellyfin.Plugin.JellyWled.Configuration;
 using Jellyfin.Plugin.JellyWled.Output;
@@ -35,6 +36,9 @@ namespace Jellyfin.Plugin.JellyWled.Api;
 public class JellyWledController : ControllerBase
 {
     private const int StreamFrameChunk = 256;
+
+    /// <summary>Maximum jobs one non-administrator may have queued at once.</summary>
+    private const int MaxJobsPerUser = 3;
     private readonly SessionTracker _tracker;
     private readonly TrackStore _store;
     private readonly AnalysisQueue _queue;
@@ -43,6 +47,7 @@ public class JellyWledController : ControllerBase
     private readonly WledHttpClient _wled;
     private readonly ILibraryManager _library;
     private readonly MediaResolver _resolver;
+    private readonly IUserManager _users;
     private readonly ILogger<JellyWledController> _logger;
 
     /// <summary>
@@ -56,9 +61,11 @@ public class JellyWledController : ControllerBase
     /// <param name="wled">WLED HTTP client.</param>
     /// <param name="library">Library manager.</param>
     /// <param name="resolver">Media resolver.</param>
+    /// <param name="users">User manager.</param>
     /// <param name="logger">Logger.</param>
-    public JellyWledController(SessionTracker tracker, TrackStore store, AnalysisQueue queue, OutputManager output, EventHub hub, WledHttpClient wled, ILibraryManager library, MediaResolver resolver, ILogger<JellyWledController> logger)
+    public JellyWledController(SessionTracker tracker, TrackStore store, AnalysisQueue queue, OutputManager output, EventHub hub, WledHttpClient wled, ILibraryManager library, MediaResolver resolver, IUserManager users, ILogger<JellyWledController> logger)
     {
+        _users = users;
         _tracker = tracker;
         _store = store;
         _queue = queue;
@@ -76,6 +83,9 @@ public class JellyWledController : ControllerBase
 
     private Guid? CallerUserId => Guid.TryParse(User.FindFirstValue("Jellyfin-UserId"), out var g) && g != Guid.Empty ? g : null;
 
+    /// <summary>Gets the calling user entity (null for API keys).</summary>
+    private User? CallerUser => CallerUserId is { } id ? _users.GetUserById(id) : null;
+
     /// <summary>
     /// Plugin status: analysis jobs, tracked sessions, devices and cache size.
     /// </summary>
@@ -86,7 +96,7 @@ public class JellyWledController : ControllerBase
     {
         var (items, bytes) = _store.Stats();
         var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        return new
+        return WebJson(new
         {
             pluginVersion = Plugin.Instance?.Version.ToString() ?? "0",
             serverTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -110,7 +120,7 @@ public class JellyWledController : ControllerBase
                 lastPacketUtc = d.LastPacketUtc,
                 positionMs = d.PositionMs,
             }).ToArray(),
-        };
+        });
     }
 
     /// <summary>
@@ -122,7 +132,7 @@ public class JellyWledController : ControllerBase
     {
         var userId = IsApiKey ? null : CallerUserId;
         var admin = IsAdmin || IsApiKey;
-        return _tracker.Active.Where(s => EventHub.CanSee(s, userId, admin)).Select(s => _hub.StatePayload(s)).ToArray();
+        return WebJson(_tracker.Active.Where(s => EventHub.CanSee(s, userId, admin)).Select(s => _hub.StatePayload(s)).ToArray());
     }
 
     /// <summary>
@@ -151,27 +161,34 @@ public class JellyWledController : ControllerBase
                 await WriteEventAsync("state", JsonSerializer.Serialize(_hub.StatePayload(s), EventHub.JsonOptions), cancellationToken).ConfigureAwait(false);
             }
 
+            // Pings go out on a fixed five-second clock regardless of traffic: clients use them as clock samples.
+            var nextPing = DateTime.UtcNow.AddSeconds(5);
             while (!cancellationToken.IsCancellationRequested)
             {
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeout.CancelAfter(TimeSpan.FromSeconds(5));
+                var wait = nextPing - DateTime.UtcNow;
                 SseEvent? evt = null;
-                try
+                if (wait > TimeSpan.Zero)
                 {
-                    evt = await reader.ReadAsync(timeout.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    // heartbeat
-                }
-                catch (ChannelClosedException)
-                {
-                    break;
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeout.CancelAfter(wait);
+                    try
+                    {
+                        evt = await reader.ReadAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        // ping due
+                    }
+                    catch (ChannelClosedException)
+                    {
+                        break;
+                    }
                 }
 
                 if (evt is null)
                 {
                     await WriteEventAsync("ping", JsonSerializer.Serialize(new { serverTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }, EventHub.JsonOptions), cancellationToken).ConfigureAwait(false);
+                    nextPing = DateTime.UtcNow.AddSeconds(5);
                 }
                 else
                 {
@@ -207,16 +224,26 @@ public class JellyWledController : ControllerBase
             return NotFound();
         }
 
-        var source = _resolver.Resolve(itemId, mediaSourceId);
-        var msid = source?.MediaSourceId ?? mediaSourceId;
-        var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        var fps = Math.Clamp(cfg.AnalysisFps, 1, 60);
-        var frame = Math.Max(0, fromMs) * fps / 1000;
-        var info = _store.GetInfo(itemId, msid, source?.RunTimeTicks);
-        AnalysisJob? job = null;
-        if (analyze && info.State != TrackState.Complete && !info.Segments.Any(s => s.IsFinalized && s.Contains(frame)))
+        var source = _resolver.Resolve(itemId, mediaSourceId, IsAdmin || IsApiKey ? null : CallerUser);
+        if (source is null)
         {
-            job = source is null ? null : _output.EnsureTrack(itemId, msid, Math.Max(0, fromMs), "api");
+            return NotFound(); // not a local video file: no track can exist
+        }
+
+        var msid = source.MediaSourceId;
+        var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var fps = cfg.EffectiveFps;
+        fromMs = Math.Clamp(fromMs, 0, Math.Max(0, source.RunTimeTicks / 10_000));
+        var frame = fromMs * fps / 1000;
+        var info = _store.GetInfo(itemId, msid, source.RunTimeTicks);
+        AnalysisJob? job = null;
+        if (analyze && info.State != TrackState.Complete && !info.Segments.Any(s => s.IsFinalized && s.Contains(frame)) && AllowNewJob())
+        {
+            job = _output.EnsureTrack(itemId, msid, fromMs, "api", force: IsAdmin || IsApiKey);
+            if (job is not null && job.RequestedBy is null && !IsApiKey)
+            {
+                job.RequestedBy = CallerUserId;
+            }
         }
 
         job ??= _queue.Find(itemId, msid);
@@ -228,8 +255,8 @@ public class JellyWledController : ControllerBase
 
         var header = new SegmentHeader
         {
-            RingWidth = (ushort)cfg.RingWidth,
-            RingHeight = (ushort)cfg.RingHeight,
+            RingWidth = (ushort)cfg.EffectiveRingWidth,
+            RingHeight = (ushort)cfg.EffectiveRingHeight,
             Fps = (ushort)fps,
             StartFrame = (uint)Math.Min(uint.MaxValue, frame),
             BandPermille = (ushort)(cfg.BandPercent * 10),
@@ -265,8 +292,18 @@ public class JellyWledController : ControllerBase
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var reader = _store.FindReader(itemId, msid, current);
-                var n = reader?.ReadRun(current, buffer) ?? 0;
+                int n;
+                try
+                {
+                    var reader = _store.FindReader(itemId, msid, current);
+                    n = reader?.ReadRun(current, buffer) ?? 0;
+                }
+                catch (Exception ex) when (ex is System.IO.IOException or ObjectDisposedException)
+                {
+                    // A segment was replaced or pruned under us; try again on the next pass.
+                    n = 0;
+                }
+
                 if (n > 0)
                 {
                     await Response.Body.WriteAsync(buffer.AsMemory(0, n * header.FrameBytes), cancellationToken).ConfigureAwait(false);
@@ -309,10 +346,14 @@ public class JellyWledController : ControllerBase
             return NotFound();
         }
 
-        var source = _resolver.Resolve(itemId, mediaSourceId);
-        var msid = source?.MediaSourceId ?? mediaSourceId;
-        var info = _store.GetInfo(itemId, msid, source?.RunTimeTicks);
-        return EventHub.TrackPayload(info, _queue.Find(itemId, msid));
+        var source = _resolver.Resolve(itemId, mediaSourceId, IsAdmin || IsApiKey ? null : CallerUser);
+        if (source is null)
+        {
+            return NotFound();
+        }
+
+        var info = _store.GetInfo(itemId, source.MediaSourceId, source.RunTimeTicks);
+        return WebJson(EventHub.TrackPayload(info, _queue.Find(itemId, source.MediaSourceId)));
     }
 
     /// <summary>
@@ -330,14 +371,25 @@ public class JellyWledController : ControllerBase
             return NotFound();
         }
 
-        var source = _resolver.Resolve(itemId, mediaSourceId);
+        var source = _resolver.Resolve(itemId, mediaSourceId, IsAdmin || IsApiKey ? null : CallerUser);
         if (source is null)
         {
             return BadRequest(new { error = "Item is not a local video file." });
         }
 
-        var job = _output.EnsureTrack(itemId, source.MediaSourceId, Math.Max(0, fromMs), "api") ?? _queue.Find(itemId, source.MediaSourceId);
-        return job is null ? new { state = "complete" } : JobPayload(job);
+        if (!AllowNewJob())
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { error = "Too many analyses queued for this user." });
+        }
+
+        fromMs = Math.Clamp(fromMs, 0, Math.Max(0, source.RunTimeTicks / 10_000));
+        var job = _output.EnsureTrack(itemId, source.MediaSourceId, fromMs, "api", force: IsAdmin || IsApiKey) ?? _queue.Find(itemId, source.MediaSourceId);
+        if (job is not null && job.RequestedBy is null && !IsApiKey)
+        {
+            job.RequestedBy = CallerUserId;
+        }
+
+        return job is null ? WebJson(new { state = "complete" }) : WebJson(JobPayload(job));
     }
 
     /// <summary>
@@ -410,7 +462,7 @@ public class JellyWledController : ControllerBase
         {
             using var doc = await _wled.GetInfoAsync(host, httpPort, cancellationToken).ConfigureAwait(false);
             var root = doc.RootElement;
-            return new
+            return WebJson(new
             {
                 ok = true,
                 version = root.TryGetProperty("ver", out var v) ? v.ToString() : null,
@@ -419,14 +471,26 @@ public class JellyWledController : ControllerBase
                 live = root.TryGetProperty("live", out var l) && l.ValueKind == JsonValueKind.True,
                 liveSource = root.TryGetProperty("lip", out var lip) ? lip.ToString() : null,
                 ip = root.TryGetProperty("ip", out var ip) ? ip.ToString() : null,
-            };
+            });
         }
         catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or JsonException or UriFormatException)
         {
             _logger.LogInformation("[JellyWled] Probe of {Host} failed: {Error}", host, ex.Message);
-            return new { ok = false, error = ex.Message };
+            return WebJson(new { ok = false, error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Serializes with the same options as the SSE stream (camelCase, dashed Guids) so clients see one dialect.
+    /// </summary>
+    private static ContentResult WebJson(object payload) => new()
+    {
+        Content = JsonSerializer.Serialize(payload, EventHub.JsonOptions),
+        ContentType = MediaTypeNames.Application.Json,
+        StatusCode = StatusCodes.Status200OK,
+    };
+
+    private bool AllowNewJob() => IsAdmin || IsApiKey || (CallerUserId is { } id && _queue.PendingFor(id) < MaxJobsPerUser);
 
     private static object JobPayload(AnalysisJob j) => new
     {

@@ -30,8 +30,11 @@ public sealed class AnalysisJob
     /// <summary>Gets the media source id.</summary>
     public string? MediaSourceId { get; }
 
-    /// <summary>Gets the start position in milliseconds.</summary>
-    public long FromMs { get; }
+    /// <summary>Gets or sets the start position in milliseconds (settable while queued, see Retarget).</summary>
+    public long FromMs { get; set; }
+
+    /// <summary>Gets or sets the user who requested the job through the API (null for the server's own work).</summary>
+    public Guid? RequestedBy { get; set; }
 
     /// <summary>Gets the reason.</summary>
     public string Reason { get; }
@@ -70,5 +73,5 @@ public sealed class AnalysisJob
     public CancellationTokenSource Cancellation { get; } = new();
 
     /// <summary>Gets the dedupe key.</summary>
-    public string Key => $"{ItemId:N}|{MediaSourceId ?? string.Empty}";
+    public string Key => $"{ItemId:N}|{Tracks.TrackStore.NormalizeMediaSourceId(MediaSourceId) ?? string.Empty}";
 }

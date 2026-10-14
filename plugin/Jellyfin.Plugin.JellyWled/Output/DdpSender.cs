@@ -17,6 +17,7 @@ public sealed class DdpSender : IDisposable
     private IPEndPoint? _endpoint;
     private byte _sequence;
     private DateTime _lastResolve = DateTime.MinValue;
+    private DateTime _lastFailure = DateTime.MinValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DdpSender"/> class.
@@ -40,6 +41,11 @@ public sealed class DdpSender : IDisposable
     /// <returns>True when every packet was handed to the socket.</returns>
     public async Task<bool> SendAsync(ReadOnlyMemory<byte> rgb, CancellationToken cancellationToken)
     {
+        if (_endpoint is null && DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(5))
+        {
+            return false; // back off after a failure instead of resolving on every frame
+        }
+
         try
         {
             if (_endpoint is null || DateTime.UtcNow - _lastResolve > TimeSpan.FromMinutes(5))
@@ -61,6 +67,7 @@ public sealed class DdpSender : IDisposable
         catch (Exception ex) when (ex is SocketException or ObjectDisposedException or InvalidOperationException)
         {
             LastError = ex.Message;
+            _lastFailure = DateTime.UtcNow;
             _client?.Dispose();
             _client = null;
             _endpoint = null;

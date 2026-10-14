@@ -23,6 +23,7 @@ public sealed class OutputManager : IHostedService, IDisposable
     private readonly TrackStore _store;
     private readonly AnalysisQueue _queue;
     private readonly WledHttpClient _wled;
+    private readonly MediaResolver _resolver;
     private readonly ILogger<OutputManager> _logger;
     private readonly ConcurrentDictionary<Guid, DeviceRunner> _runners = new();
     private readonly ConcurrentDictionary<string, PlaybackState> _lastStates = new(StringComparer.Ordinal);
@@ -36,13 +37,15 @@ public sealed class OutputManager : IHostedService, IDisposable
     /// <param name="store">Track store.</param>
     /// <param name="queue">Analysis queue.</param>
     /// <param name="wled">WLED HTTP client.</param>
+    /// <param name="resolver">Media resolver (stale-file check).</param>
     /// <param name="logger">Logger.</param>
-    public OutputManager(SessionTracker tracker, TrackStore store, AnalysisQueue queue, WledHttpClient wled, ILogger<OutputManager> logger)
+    public OutputManager(SessionTracker tracker, TrackStore store, AnalysisQueue queue, WledHttpClient wled, MediaResolver resolver, ILogger<OutputManager> logger)
     {
         _tracker = tracker;
         _store = store;
         _queue = queue;
         _wled = wled;
+        _resolver = resolver;
         _logger = logger;
     }
 
@@ -96,18 +99,39 @@ public sealed class OutputManager : IHostedService, IDisposable
     /// <param name="mediaSourceId">Media source id.</param>
     /// <param name="positionMs">Position.</param>
     /// <param name="reason">Reason.</param>
+    /// <param name="force">Queue even when on-demand analysis is switched off (administrator requests).</param>
     /// <returns>The pending job, or null when nothing was needed or on-demand analysis is off.</returns>
-    public AnalysisJob? EnsureTrack(Guid itemId, string? mediaSourceId, long positionMs, string reason)
+    public AnalysisJob? EnsureTrack(Guid itemId, string? mediaSourceId, long positionMs, string reason, bool force = false)
     {
         var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        if (!cfg.AnalyzeOnPlayback && reason != "api")
+        if (!cfg.AnalyzeOnPlayback && !force)
         {
             return null;
         }
 
-        var fps = Math.Clamp(cfg.AnalysisFps, 1, 60);
-        var frame = positionMs * fps / 1000;
+        mediaSourceId = TrackStore.NormalizeMediaSourceId(mediaSourceId);
+        var fps = cfg.EffectiveFps;
+        var frame = Math.Max(0, positionMs) * fps / 1000;
         var segments = _store.ListSegments(itemId, mediaSourceId);
+        if (segments.Count > 0)
+        {
+            // A replaced file at the same path keeps its item id: throw the old track away (checked once per request, not per frame).
+            var source = _resolver.Resolve(itemId, mediaSourceId);
+            if (source is not null)
+            {
+                var info = new System.IO.FileInfo(source.Path);
+                var size = (ulong)info.Length;
+                var mtime = (ulong)new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds();
+                if (segments.Any(s => s.Header.SourceSize != size || s.Header.SourceMtimeMs != mtime))
+                {
+                    _logger.LogInformation("[JellyWled] Media file changed for {Item}; discarding its track", source.Name);
+                    _queue.Cancel(itemId);
+                    _store.Delete(itemId);
+                    segments = [];
+                }
+            }
+        }
+
         if (segments.Any(s => s.IsFinalized && s.Contains(frame)))
         {
             return null;
@@ -206,7 +230,7 @@ public sealed class OutputManager : IHostedService, IDisposable
             {
                 var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
                 var wanted = cfg.EnableServerOutput
-                    ? cfg.Devices.Where(d => d.Enabled && !string.IsNullOrWhiteSpace(d.Host)).ToDictionary(d => d.Id)
+                    ? cfg.Devices.Where(d => d.Enabled && !string.IsNullOrWhiteSpace(d.Host)).DistinctBy(d => d.Id).ToDictionary(d => d.Id)
                     : new Dictionary<Guid, WledDevice>();
                 foreach (var (id, runner) in _runners.ToArray())
                 {
@@ -227,7 +251,7 @@ public sealed class OutputManager : IHostedService, IDisposable
                 {
                     if (!_runners.ContainsKey(id))
                     {
-                        var runner = new DeviceRunner(device, _tracker, _store, _wled, _logger);
+                        var runner = new DeviceRunner(device, _tracker, _store, _wled, _logger, s => EnsureTrack(s.ItemId, s.MediaSourceId, s.PositionMsNow(), "gap"));
                         if (_runners.TryAdd(id, runner))
                         {
                             runner.Start(stopping);
