@@ -20,13 +20,12 @@ This is the runbook used for the owner's server (BOT-SERVER: Jellyfin 12.1 in Do
 ```bash
 # from this repository
 VERSION=$(grep -m1 '^version:' plugin/build.yaml | cut -d'"' -f2)
-ssh botserver "mkdir -p ~/docker/bot_network/jellyfin/config/plugins/Jelly-WLED_$VERSION"
-scp dist/plugin/Jellyfin.Plugin.JellyWled.dll dist/plugin/meta.json \
-    "botserver:~/docker/bot_network/jellyfin/config/plugins/Jelly-WLED_$VERSION/"
-ssh botserver "docker restart jellyfin"
+ssh botserver "rm -rf ~/jelly-wled-stage && mkdir -p ~/jelly-wled-stage/Jelly-WLED_$VERSION"
+scp dist/plugin/Jellyfin.Plugin.JellyWled.dll dist/plugin/meta.json "botserver:~/jelly-wled-stage/Jelly-WLED_$VERSION/"
+ssh botserver "docker cp ~/jelly-wled-stage/Jelly-WLED_$VERSION jellyfin:/config/plugins/ && docker restart jellyfin"
 ```
 
-The container runs as root on this host, so file ownership does not matter; on other installs make the folder readable by the Jellyfin user.
+The bind-mounted `config/plugins` folder on this host is owned by root, so the files go in through `docker cp` (the container runs as root and reads them fine). On installs where the folder is writable, `scp` straight into it works too.
 
 ## Verify
 
@@ -42,7 +41,7 @@ Expected: status `Active`, the Status route answers JSON, the log shows "Session
 ## Roll back
 
 ```bash
-ssh botserver "rm -rf ~/docker/bot_network/jellyfin/config/plugins/Jelly-WLED_$VERSION && docker restart jellyfin"
+ssh botserver "docker exec jellyfin rm -rf /config/plugins/Jelly-WLED_$VERSION && docker restart jellyfin"
 ```
 
 The plugin stores its configuration in `config/plugins/configurations/Jellyfin.Plugin.JellyWled.xml` and its tracks under `config/data/jellywled/tracks/` (or the configured cache directory). Delete those too for a complete removal.
