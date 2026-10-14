@@ -90,7 +90,15 @@ public sealed partial class TrackStore : IDisposable
         var dir = ItemDirectory(itemId, mediaSourceId);
         var cfg = Config;
         var list = new List<SegmentInfo>();
-        foreach (var file in ScanDirectory(dir))
+        var files = ScanDirectory(dir);
+        if (files.Exists(f => !File.Exists(f)))
+        {
+            // A part file was just renamed into place (or deleted): rescan right away instead of serving the stale list.
+            InvalidateScan(dir);
+            files = ScanDirectory(dir);
+        }
+
+        foreach (var file in files)
         {
             try
             {
