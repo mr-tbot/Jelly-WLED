@@ -3,6 +3,7 @@ package com.mrtbot.jellywled
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Base64
 import android.util.Log
 import com.mrtbot.jellywled.data.Settings
 import com.mrtbot.jellywled.data.WledNode
@@ -17,7 +18,7 @@ import org.json.JSONArray
  *
  * adb shell am broadcast -n com.mrtbot.jellywled/.DebugConfigReceiver -a com.mrtbot.jellywled.DEBUG_CONFIG \
  *   --es serverUrl http://10.0.101.100:8096 --es token <token> --es userId <id> --es followMode anyOfUser \
- *   --es nodes '[{"name":"sim","host":"10.0.101.100","ddpPort":4050,"httpPort":8090,...}]' --ez glowEnabled true
+ *   --es nodesB64 "$(echo -n '[{"name":"sim","host":"10.0.101.100","ddpPort":4050,"httpPort":8090}]' | base64 -w0)" --ez glowEnabled true
  *
  * Extras are optional; only the ones present are changed. `test=<pattern>` with `testNode=<node id or name>` and
  * `testSeconds=<n>` runs a test pattern.
@@ -39,7 +40,10 @@ class DebugConfigReceiver : BroadcastReceiver() {
                     intent.getStringExtra("followMode")?.let { next = next.copy(followMode = it) }
                     intent.getStringExtra("followedDeviceId")?.let { next = next.copy(followedDeviceId = it) }
                     intent.getStringExtra("followedDeviceName")?.let { next = next.copy(followedDeviceName = it) }
-                    intent.getStringExtra("nodes")?.let { json ->
+                    // The shell mangles quotes in a JSON extra, so the test sends it base64 encoded (nodesB64).
+                    val nodesJson = intent.getStringExtra("nodesB64")?.let { String(Base64.decode(it, Base64.DEFAULT), Charsets.UTF_8) }
+                        ?: intent.getStringExtra("nodes")
+                    nodesJson?.let { json ->
                         val a = JSONArray(json)
                         next = next.copy(nodes = List(a.length()) { WledNode.fromJson(a.getJSONObject(it)) })
                     }
