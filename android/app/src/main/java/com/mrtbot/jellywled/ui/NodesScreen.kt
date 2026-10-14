@@ -83,7 +83,8 @@ fun NodesScreen(s: GlowSettings, store: Settings, status: GlowStatus) {
         }
         ButtonRow {
             GlowButton("Add node", primary = true) { editing = WledNode(name = "WLED ${s.nodes.size + 1}") }
-            GlowButton(if (searching) "Searching..." else "Find on network", enabled = !searching) { searching = true }
+            // Stays enabled while searching so the remote's focus does not jump away; a second press does nothing.
+            GlowButton(if (searching) "Searching..." else "Find on network") { searching = true }
         }
         searchError?.let { Outcome(it, false) }
         if (searching || found.isNotEmpty()) {

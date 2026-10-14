@@ -25,7 +25,9 @@ fun ConnectScreen(s: GlowSettings, store: Settings, onSignedIn: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Pair<Boolean?, String>?>(null) }
 
+    // Buttons stay enabled while busy (a disabled button would drop the remote's focus); repeat presses are ignored.
     fun work(block: suspend () -> Pair<Boolean?, String>) {
+        if (busy) return
         busy = true
         result = null to "Working..."
         scope.launch {
@@ -61,13 +63,13 @@ fun ConnectScreen(s: GlowSettings, store: Settings, onSignedIn: () -> Unit) {
             Field("Password", password, keyboard = KeyboardType.Password, password = true) { password = it }
         }
         ButtonRow {
-            GlowButton("Test connection", enabled = !busy) {
+            GlowButton("Test connection") {
                 work {
                     val info = JellyfinClient(url, null, s.deviceId).publicInfo()
                     true to "Found ${info.serverName.ifBlank { "a Jellyfin server" }}, version ${info.version}."
                 }
             }
-            GlowButton("Sign in", primary = true, enabled = !busy && (if (useKey) apiKey.isNotBlank() else user.isNotBlank())) {
+            GlowButton("Sign in", primary = true, enabled = if (useKey) apiKey.isNotBlank() else user.isNotBlank()) {
                 work {
                     val token: String
                     val signedIn: String

@@ -1,5 +1,6 @@
 package com.mrtbot.jellywled.ui
 
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -22,6 +23,10 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +39,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,12 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -60,10 +68,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.mrtbot.jellywled.R
+import kotlinx.coroutines.delay
 import org.json.JSONException
 import java.io.IOException
 import java.net.ConnectException
@@ -257,6 +264,12 @@ fun Choice(label: String, options: List<Pair<String, String>>, selected: String,
     }
 }
 
+/**
+ * A single-line text field holding its own text, seeded with [value]; [onValue] gets every change and [accept]
+ * rejects edits outright. Built on TextFieldState because only that text field honors showKeyboardOnFocus: with a
+ * remote, moving focus onto a field must not open the keyboard (it would take over the D-pad); the center key or a tap
+ * opens it.
+ */
 @Composable
 fun Field(
     label: String,
@@ -266,25 +279,41 @@ fun Field(
     password: Boolean = false,
     supporting: String? = null,
     isError: Boolean = false,
+    accept: (String) -> Boolean = { true },
     onValue: (String) -> Unit,
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val state = rememberTextFieldState(value)
+    val report by rememberUpdatedState(onValue)
+    val allow by rememberUpdatedState(accept)
+    LaunchedEffect(state) { snapshotFlow { state.text.toString() }.collect { report(it) } }
+    // Remote: focus alone starts no input session. The first center press flips showKeyboardOnFocus, which makes the
+    // focused field start its session with the keyboard; later presses reach the field, which reopens the keyboard.
+    var typing by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    LaunchedEffect(typing) {
+        if (!typing) return@LaunchedEffect
+        delay(150) // let the field start its input session first
+        view.context.getSystemService(InputMethodManager::class.java)?.showSoftInput(view, 0)
+    }
     OutlinedTextField(
-        value = value,
-        onValueChange = onValue,
-        // The text field's own focused border is the 2 dp accent ring; add only the scale. With a remote, moving
-        // focus onto a field must not open the keyboard (it would take over the D-pad): the center key opens it.
-        modifier = modifier.fillMaxWidth().glowFocus(ring = false).onPreviewKeyEvent { e ->
-            if (e.key != Key.DirectionCenter) return@onPreviewKeyEvent false
-            if (e.type == KeyEventType.KeyUp) keyboardController?.show()
-            true
-        },
+        state = state,
+        // The text field's own focused border is the 2 dp accent ring; add only the scale.
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { if (!it.hasFocus) typing = false }
+            .onPreviewKeyEvent { e ->
+                if (typing || (e.key != Key.DirectionCenter && e.key != Key.Enter && e.key != Key.NumPadEnter)) return@onPreviewKeyEvent false
+                if (e.type == KeyEventType.KeyUp) typing = true
+                true
+            }
+            .glowFocus(ring = false),
         label = { Text(label) },
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         isError = isError,
         supportingText = supporting?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, showKeyboardOnFocus = false),
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard, showKeyboardOnFocus = typing),
+        inputTransformation = InputTransformation { if (!allow(toString())) revertAllChanges() },
+        outputTransformation = if (password) OutputTransformation { replace(0, length, "\u2022".repeat(length)) } else null,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Orange, unfocusedBorderColor = Line, focusedLabelColor = Orange, cursorColor = Orange,
@@ -293,25 +322,33 @@ fun Field(
     )
 }
 
-/** An integer field that keeps the typed text and reports only values inside [range]. */
+/** An integer field that reports only values inside [range] and flags anything else. */
 @Composable
 fun IntField(label: String, value: Int, range: IntRange, modifier: Modifier = Modifier, onValue: (Int) -> Unit) {
     var text by remember { mutableStateOf(value.toString()) }
     val valid = text.toIntOrNull()?.let { it in range } == true
-    Field(label, text, modifier, KeyboardType.Number, supporting = if (valid) null else "${range.first} to ${range.last}", isError = !valid) { t ->
-        text = t.filter { it.isDigit() || it == '-' }.take(6)
-        text.toIntOrNull()?.takeIf { it in range }?.let(onValue)
+    Field(
+        label, value.toString(), modifier, KeyboardType.Number,
+        supporting = if (valid) null else "${range.first} to ${range.last}", isError = !valid,
+        accept = { t -> t.length <= 6 && t.withIndex().all { (i, c) -> c.isDigit() || (c == '-' && i == 0) } },
+    ) { t ->
+        text = t
+        t.toIntOrNull()?.takeIf { it in range }?.let(onValue)
     }
 }
 
-/** A decimal field that keeps the typed text and reports only values inside [range]. */
+/** A decimal field that reports only values inside [range] and flags anything else. */
 @Composable
 fun DecimalField(label: String, value: Double, range: ClosedFloatingPointRange<Double>, modifier: Modifier = Modifier, onValue: (Double) -> Unit) {
     var text by remember { mutableStateOf(value.toString()) }
     val valid = text.toDoubleOrNull()?.let { it in range } == true
-    Field(label, text, modifier, KeyboardType.Decimal, supporting = if (valid) null else "${range.start} to ${range.endInclusive}", isError = !valid) { t ->
-        text = t.filter { it.isDigit() || it == '.' }.take(6)
-        text.toDoubleOrNull()?.takeIf { it in range }?.let(onValue)
+    Field(
+        label, value.toString(), modifier, KeyboardType.Decimal,
+        supporting = if (valid) null else "${range.start} to ${range.endInclusive}", isError = !valid,
+        accept = { t -> t.length <= 6 && t.all { it.isDigit() || it == '.' } },
+    ) { t ->
+        text = t
+        t.toDoubleOrNull()?.takeIf { it in range }?.let(onValue)
     }
 }
 
