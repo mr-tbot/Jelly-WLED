@@ -1,0 +1,542 @@
+{
+  "android/app/build.gradle.kts": {
+    "mtime": 1791988962.175209,
+    "seen": 1792006647.5199625,
+    "ast_hash": "3cf7724f213caa4f14f671c62a328efd",
+    "semantic_hash": "3cf7724f213caa4f14f671c62a328efd"
+  },
+  "android/app/src/debug/java/com/mrtbot/jellywled/DebugConfigReceiver.kt": {
+    "mtime": 1792006227.0379655,
+    "seen": 1792006647.5199661,
+    "ast_hash": "32020a9cae57a4fc2c0c14060e3ae373",
+    "semantic_hash": "32020a9cae57a4fc2c0c14060e3ae373"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/data/Settings.kt": {
+    "mtime": 1791989212.6660213,
+    "seen": 1792006647.5199678,
+    "ast_hash": "632fe169c50577bcec2304e8a3ef3a7b",
+    "semantic_hash": "632fe169c50577bcec2304e8a3ef3a7b"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/ColorPipeline.kt": {
+    "mtime": 1791993119.932861,
+    "seen": 1792006647.5199687,
+    "ast_hash": "3fe452b55bc6cbc3040d7e09fcce644b",
+    "semantic_hash": "3fe452b55bc6cbc3040d7e09fcce644b"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/Ddp.kt": {
+    "mtime": 1791989029.8555572,
+    "seen": 1792006647.5199695,
+    "ast_hash": "0830306d572cbf51c00c1317ac339ee9",
+    "semantic_hash": "0830306d572cbf51c00c1317ac339ee9"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/LedMapper.kt": {
+    "mtime": 1791988995.3539279,
+    "seen": 1792006647.5199704,
+    "ast_hash": "2bab3d044ba382e1316270a94a084fc1",
+    "semantic_hash": "2bab3d044ba382e1316270a94a084fc1"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/RingLayout.kt": {
+    "mtime": 1791988995.349928,
+    "seen": 1792006647.5199711,
+    "ast_hash": "a0962f54bed51db8a56ce4501271cb1f",
+    "semantic_hash": "a0962f54bed51db8a56ce4501271cb1f"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/SegmentHeader.kt": {
+    "mtime": 1791989029.859557,
+    "seen": 1792006647.5199718,
+    "ast_hash": "f79ec1fc6d536cf877fcfae04740eea8",
+    "semantic_hash": "f79ec1fc6d536cf877fcfae04740eea8"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/SyncClock.kt": {
+    "mtime": 1791999552.2438216,
+    "seen": 1792006647.5199726,
+    "ast_hash": "5a11479b27dea2fd62c5c8c540933c84",
+    "semantic_hash": "5a11479b27dea2fd62c5c8c540933c84"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/TestPatterns.kt": {
+    "mtime": 1791988995.3609273,
+    "seen": 1792006647.5199733,
+    "ast_hash": "1b1de384c1850370cdc24950477bdb1c",
+    "semantic_hash": "1b1de384c1850370cdc24950477bdb1c"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/glow/TrackBuffer.kt": {
+    "mtime": 1791989029.8635566,
+    "seen": 1792006647.519974,
+    "ast_hash": "c3e0f436da693dd7a90502b639b939ca",
+    "semantic_hash": "c3e0f436da693dd7a90502b639b939ca"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/net/JellyfinClient.kt": {
+    "mtime": 1791999552.2443724,
+    "seen": 1792006647.519975,
+    "ast_hash": "8a33a560fe85862daf072bc192ae8288",
+    "semantic_hash": "8a33a560fe85862daf072bc192ae8288"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/net/Wled.kt": {
+    "mtime": 1791989276.478935,
+    "seen": 1792006647.5199754,
+    "ast_hash": "36099ab3c5e190743bee75d333bc26d1",
+    "semantic_hash": "36099ab3c5e190743bee75d333bc26d1"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/service/GlowService.kt": {
+    "mtime": 1791999552.245018,
+    "seen": 1792006647.5199761,
+    "ast_hash": "61ef654e57f75de962b9d34869845722",
+    "semantic_hash": "61ef654e57f75de962b9d34869845722"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/ConnectScreen.kt": {
+    "mtime": 1791997224.5153096,
+    "seen": 1792006647.5199766,
+    "ast_hash": "c19ddb75de397525995e1685aed14e3d",
+    "semantic_hash": "c19ddb75de397525995e1685aed14e3d"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/FollowScreen.kt": {
+    "mtime": 1791991506.4625382,
+    "seen": 1792006647.5199776,
+    "ast_hash": "b19878c1d5e12accc4561bb1914f4e63",
+    "semantic_hash": "b19878c1d5e12accc4561bb1914f4e63"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/MainActivity.kt": {
+    "mtime": 1791989966.365071,
+    "seen": 1792006647.5199783,
+    "ast_hash": "29c415c2d2754e765f621baff8ae9ae8",
+    "semantic_hash": "29c415c2d2754e765f621baff8ae9ae8"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/NodesScreen.kt": {
+    "mtime": 1791997224.5162718,
+    "seen": 1792006647.5199788,
+    "ast_hash": "09e6848d1820bdd5f36349f41adae115",
+    "semantic_hash": "09e6848d1820bdd5f36349f41adae115"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/StatusScreen.kt": {
+    "mtime": 1791989729.318019,
+    "seen": 1792006647.5199795,
+    "ast_hash": "770f53d3e6df4a14f4eb0f9f438bf6f1",
+    "semantic_hash": "770f53d3e6df4a14f4eb0f9f438bf6f1"
+  },
+  "android/app/src/main/java/com/mrtbot/jellywled/ui/Theme.kt": {
+    "mtime": 1791997224.511283,
+    "seen": 1792006647.51998,
+    "ast_hash": "cb3079e204fc6522148cf826c4e63dbd",
+    "semantic_hash": "cb3079e204fc6522148cf826c4e63dbd"
+  },
+  "android/app/src/test/java/com/mrtbot/jellywled/glow/GlowTest.kt": {
+    "mtime": 1791989089.2664788,
+    "seen": 1792006647.519981,
+    "ast_hash": "428009309d8d00df5b66ad130147d3bb",
+    "semantic_hash": "428009309d8d00df5b66ad130147d3bb"
+  },
+  "android/app/src/test/java/com/mrtbot/jellywled/glow/SyncTest.kt": {
+    "mtime": 1791999552.2458007,
+    "seen": 1792006647.5199816,
+    "ast_hash": "094de3280868c83e97b679340a117d4e",
+    "semantic_hash": "094de3280868c83e97b679340a117d4e"
+  },
+  "android/app/src/test/java/com/mrtbot/jellywled/net/ParseTest.kt": {
+    "mtime": 1791999552.2454982,
+    "seen": 1792006647.5199823,
+    "ast_hash": "d180fcc6825c82d68cd47c48af259bc2",
+    "semantic_hash": "d180fcc6825c82d68cd47c48af259bc2"
+  },
+  "android/build.gradle.kts": {
+    "mtime": 1791988962.1672096,
+    "seen": 1792006647.519983,
+    "ast_hash": "6f892cc873ab7cb837b147c5ee0f0b6d",
+    "semantic_hash": "6f892cc873ab7cb837b147c5ee0f0b6d"
+  },
+  "android/gradlew": {
+    "mtime": 1791988932.6352417,
+    "seen": 1792006647.5199835,
+    "ast_hash": "f092910dfa8e47c5a37a452c3f6baf8a",
+    "semantic_hash": "f092910dfa8e47c5a37a452c3f6baf8a"
+  },
+  "android/settings.gradle.kts": {
+    "mtime": 1791988962.16121,
+    "seen": 1792006647.5199845,
+    "ast_hash": "8593a777b84bf191bd3b38a125d141c6",
+    "semantic_hash": "8593a777b84bf191bd3b38a125d141c6"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.Tests/ConfigurationTests.cs": {
+    "mtime": 1791986671.6739695,
+    "seen": 1792006647.519985,
+    "ast_hash": "a27ed147d87e2dfaba7f0f565988a37c",
+    "semantic_hash": "a27ed147d87e2dfaba7f0f565988a37c"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.Tests/GlowTests.cs": {
+    "mtime": 1791987330.9107337,
+    "seen": 1792006647.5199857,
+    "ast_hash": "292a76729cf056ee5c175116588d397f",
+    "semantic_hash": "292a76729cf056ee5c175116588d397f"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.Tests/Jellyfin.Plugin.JellyWled.Tests.csproj": {
+    "mtime": 1791988392.2973745,
+    "seen": 1792006647.5199862,
+    "ast_hash": "ddbfef7abbd486ea8b95641d48534836",
+    "semantic_hash": "ddbfef7abbd486ea8b95641d48534836"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.Tests/StoreAndSyncTests.cs": {
+    "mtime": 1791994360.5384061,
+    "seen": 1792006647.5199869,
+    "ast_hash": "44828f0cf38e849be84a24f7d01ab16f",
+    "semantic_hash": "44828f0cf38e849be84a24f7d01ab16f"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.Tests/TrackTests.cs": {
+    "mtime": 1791988392.2487984,
+    "seen": 1792006647.5199873,
+    "ast_hash": "fc05f09bf0b480a75f10ef7551e36601",
+    "semantic_hash": "fc05f09bf0b480a75f10ef7551e36601"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled.slnx": {
+    "mtime": 1791986671.3840098,
+    "seen": 1792006647.5199883,
+    "ast_hash": "efcda32c0b8ad0f3fc14360421006b39",
+    "semantic_hash": "efcda32c0b8ad0f3fc14360421006b39"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/AnalysisJob.cs": {
+    "mtime": 1791990536.4806404,
+    "seen": 1792006647.5199888,
+    "ast_hash": "250351bfe5d1c6da6f5b7862831ae00b",
+    "semantic_hash": "250351bfe5d1c6da6f5b7862831ae00b"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/AnalysisQueue.cs": {
+    "mtime": 1791990627.2147572,
+    "seen": 1792006647.5199895,
+    "ast_hash": "f9b073c6c641b2b51ce91fabe36565f8",
+    "semantic_hash": "f9b073c6c641b2b51ce91fabe36565f8"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/CropInfo.cs": {
+    "mtime": 1791987797.2568214,
+    "seen": 1792006647.51999,
+    "ast_hash": "939d3943463ce6751e9f2a03f0d3d87a",
+    "semantic_hash": "939d3943463ce6751e9f2a03f0d3d87a"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/FfmpegAnalyzer.cs": {
+    "mtime": 1791993580.207726,
+    "seen": 1792006647.5199907,
+    "ast_hash": "66bb3523037b34861be94a285ed58d38",
+    "semantic_hash": "66bb3523037b34861be94a285ed58d38"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/LibraryWatcher.cs": {
+    "mtime": 1791990627.2307556,
+    "seen": 1792006647.5199914,
+    "ast_hash": "992e72d1831b5da077ead83a9ea13aa6",
+    "semantic_hash": "992e72d1831b5da077ead83a9ea13aa6"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/MediaResolver.cs": {
+    "mtime": 1791993580.2128649,
+    "seen": 1792006647.519992,
+    "ast_hash": "bdf8871694474b424f8fe5b3bae0ffc4",
+    "semantic_hash": "bdf8871694474b424f8fe5b3bae0ffc4"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Analysis/ResolvedSource.cs": {
+    "mtime": 1791987602.298147,
+    "seen": 1792006647.5199926,
+    "ast_hash": "b9c9ad2e92d6f362f51c81a5ae817833",
+    "semantic_hash": "b9c9ad2e92d6f362f51c81a5ae817833"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Api/EventHub.cs": {
+    "mtime": 1791990691.1757662,
+    "seen": 1792006647.5199933,
+    "ast_hash": "db343b76476f2e38642a6cc60bac475c",
+    "semantic_hash": "db343b76476f2e38642a6cc60bac475c"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Api/JellyWledController.cs": {
+    "mtime": 1791993597.7123437,
+    "seen": 1792006647.519994,
+    "ast_hash": "acbbc232b1e5971652af4aebe60097fe",
+    "semantic_hash": "acbbc232b1e5971652af4aebe60097fe"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Api/SseEvent.cs": {
+    "mtime": 1791988140.3996122,
+    "seen": 1792006647.5199947,
+    "ast_hash": "20a25adff265c1c6ecc0240d1912c942",
+    "semantic_hash": "20a25adff265c1c6ecc0240d1912c942"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Configuration/JellyWledConfig.js": {
+    "mtime": 1791990710.9768429,
+    "seen": 1792006647.5199955,
+    "ast_hash": "effc131c9ee5e1d8fdee263e241541ff",
+    "semantic_hash": "effc131c9ee5e1d8fdee263e241541ff"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Configuration/PluginConfiguration.cs": {
+    "mtime": 1791990536.4738252,
+    "seen": 1792006647.5199962,
+    "ast_hash": "1646e40a1a51644d35a618a698dca200",
+    "semantic_hash": "1646e40a1a51644d35a618a698dca200"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Configuration/WledDevice.cs": {
+    "mtime": 1791987036.9824364,
+    "seen": 1792006647.519997,
+    "ast_hash": "a699dbc68eb6ea814aa11a369e4633f6",
+    "semantic_hash": "a699dbc68eb6ea814aa11a369e4633f6"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/ColorPipeline.cs": {
+    "mtime": 1791987276.0626,
+    "seen": 1792006647.5199976,
+    "ast_hash": "a5a9b0e162dd4c1d0dbeebe785af0e39",
+    "semantic_hash": "a5a9b0e162dd4c1d0dbeebe785af0e39"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/LedMapper.cs": {
+    "mtime": 1791987276.0566003,
+    "seen": 1792006647.5199983,
+    "ast_hash": "011d365570bbb62a4ffcbfd5a3315868",
+    "semantic_hash": "011d365570bbb62a4ffcbfd5a3315868"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/LedSpan.cs": {
+    "mtime": 1791987347.9803362,
+    "seen": 1792006647.519999,
+    "ast_hash": "597df5ab62c178547501b3cf74c938b6",
+    "semantic_hash": "597df5ab62c178547501b3cf74c938b6"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/RingLayout.cs": {
+    "mtime": 1791987347.9801605,
+    "seen": 1792006647.5199997,
+    "ast_hash": "c73c04e6446d9a8fa52845529d0ab5cc",
+    "semantic_hash": "c73c04e6446d9a8fa52845529d0ab5cc"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/Side.cs": {
+    "mtime": 1791987276.0466013,
+    "seen": 1792006647.5200002,
+    "ast_hash": "758c3c505cbdb88af35b406bcc362312",
+    "semantic_hash": "758c3c505cbdb88af35b406bcc362312"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Glow/TestPatterns.cs": {
+    "mtime": 1791987276.0675993,
+    "seen": 1792006647.520001,
+    "ast_hash": "3e4269887cc0c52ccb1303f47f5529db",
+    "semantic_hash": "3e4269887cc0c52ccb1303f47f5529db"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Jellyfin.Plugin.JellyWled.csproj": {
+    "mtime": 1791988140.3991456,
+    "seen": 1792006647.5200016,
+    "ast_hash": "2c6fb25274b2f85565f28b81a8f948a0",
+    "semantic_hash": "2c6fb25274b2f85565f28b81a8f948a0"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/DdpPacketizer.cs": {
+    "mtime": 1791987347.9805467,
+    "seen": 1792006647.5200024,
+    "ast_hash": "3ab717faf28ee44a0e66441f6962a21f",
+    "semantic_hash": "3ab717faf28ee44a0e66441f6962a21f"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/DdpSender.cs": {
+    "mtime": 1791990627.2256956,
+    "seen": 1792006647.520003,
+    "ast_hash": "0bcd4d2bc15df15a85257e7b00849bb5",
+    "semantic_hash": "0bcd4d2bc15df15a85257e7b00849bb5"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/DeviceRunner.cs": {
+    "mtime": 1791993580.215139,
+    "seen": 1792006647.5200038,
+    "ast_hash": "3679fcf3c8eeb2d761064bf2072cf361",
+    "semantic_hash": "3679fcf3c8eeb2d761064bf2072cf361"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/DeviceStatus.cs": {
+    "mtime": 1791987832.2653735,
+    "seen": 1792006647.5200043,
+    "ast_hash": "f32423b8012d91f75326e27722bbffff",
+    "semantic_hash": "f32423b8012d91f75326e27722bbffff"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/OutputManager.cs": {
+    "mtime": 1791993580.2164361,
+    "seen": 1792006647.5200052,
+    "ast_hash": "69748299ae550e4c798117207e2961f6",
+    "semantic_hash": "69748299ae550e4c798117207e2961f6"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Output/WledHttpClient.cs": {
+    "mtime": 1791987832.2533743,
+    "seen": 1792006647.5200057,
+    "ast_hash": "6d0b4b401fd513c3ceaa34c2011bc3b7",
+    "semantic_hash": "6d0b4b401fd513c3ceaa34c2011bc3b7"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Plugin.cs": {
+    "mtime": 1791986671.4569998,
+    "seen": 1792006647.5200064,
+    "ast_hash": "dc59a95abb5543c6c846a36fc5ef4e77",
+    "semantic_hash": "dc59a95abb5543c6c846a36fc5ef4e77"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/PluginServiceRegistrator.cs": {
+    "mtime": 1791990627.232168,
+    "seen": 1792006647.5200071,
+    "ast_hash": "1e0725574163d005b8d6a9e1d99bbbda",
+    "semantic_hash": "1e0725574163d005b8d6a9e1d99bbbda"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/ScheduledTasks/AnalyzeLibraryTask.cs": {
+    "mtime": 1791990627.2329054,
+    "seen": 1792006647.5200076,
+    "ast_hash": "6632148dc2fabcbfa0e20b020afc2415",
+    "semantic_hash": "6632148dc2fabcbfa0e20b020afc2415"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Sessions/PlaybackState.cs": {
+    "mtime": 1791993580.2206678,
+    "seen": 1792006647.520008,
+    "ast_hash": "75fb76b9d69a70d8cd38ee9b8d34eba4",
+    "semantic_hash": "75fb76b9d69a70d8cd38ee9b8d34eba4"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Sessions/SessionChange.cs": {
+    "mtime": 1791987732.3219812,
+    "seen": 1792006647.520009,
+    "ast_hash": "3125f162820153633f5bc93536afdfb9",
+    "semantic_hash": "3125f162820153633f5bc93536afdfb9"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Sessions/SessionTracker.cs": {
+    "mtime": 1791993580.2250292,
+    "seen": 1792006647.5200098,
+    "ast_hash": "7dec0c9c5e79499221e704fa32082cac",
+    "semantic_hash": "7dec0c9c5e79499221e704fa32082cac"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/SegmentHeader.cs": {
+    "mtime": 1791987347.9795465,
+    "seen": 1792006647.5200102,
+    "ast_hash": "6fb2cccaf40595e0ed58350a1a6c76d0",
+    "semantic_hash": "6fb2cccaf40595e0ed58350a1a6c76d0"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/SegmentInfo.cs": {
+    "mtime": 1791987480.0670521,
+    "seen": 1792006647.5200107,
+    "ast_hash": "6e77be8f6e4d750b69f37ad0d1edb870",
+    "semantic_hash": "6e77be8f6e4d750b69f37ad0d1edb870"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/SegmentReader.cs": {
+    "mtime": 1791990536.4770567,
+    "seen": 1792006647.5200114,
+    "ast_hash": "8eebe1ddae28c0b4075c1e7efeca2432",
+    "semantic_hash": "8eebe1ddae28c0b4075c1e7efeca2432"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/SegmentWriter.cs": {
+    "mtime": 1791987656.6128304,
+    "seen": 1792006647.5200121,
+    "ast_hash": "e4e039e4191e225b3ed4f27192aa0bbc",
+    "semantic_hash": "e4e039e4191e225b3ed4f27192aa0bbc"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/TrackInfo.cs": {
+    "mtime": 1791987480.0870504,
+    "seen": 1792006647.5200129,
+    "ast_hash": "b846b461820b915e49a9e2c2529ae82c",
+    "semantic_hash": "b846b461820b915e49a9e2c2529ae82c"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/TrackState.cs": {
+    "mtime": 1791987480.0820508,
+    "seen": 1792006647.5200133,
+    "ast_hash": "dd4d781d7ab8bbd001dfbbb875330ab3",
+    "semantic_hash": "dd4d781d7ab8bbd001dfbbb875330ab3"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Tracks/TrackStore.cs": {
+    "mtime": 1791990536.475009,
+    "seen": 1792006647.520014,
+    "ast_hash": "9514ce8170730b9781db4584d1f00d4c",
+    "semantic_hash": "9514ce8170730b9781db4584d1f00d4c"
+  },
+  "tools/_fixture_frames.py": {
+    "mtime": 1791987726.1584558,
+    "seen": 1792006647.5200145,
+    "ast_hash": "faa190d25fc1fef34a5bb65baadfe6b7",
+    "semantic_hash": "faa190d25fc1fef34a5bb65baadfe6b7"
+  },
+  "tools/_png.py": {
+    "mtime": 1791987693.9929435,
+    "seen": 1792006647.5200155,
+    "ast_hash": "9f92d7313a03494cba8b0550abb4923f",
+    "semantic_hash": "9f92d7313a03494cba8b0550abb4923f"
+  },
+  "tools/ddp_sim.py": {
+    "mtime": 1791987694.0189157,
+    "seen": 1792006647.520016,
+    "ast_hash": "c21f8b8dc172a4e55b27d7a0743ddefd",
+    "semantic_hash": "c21f8b8dc172a4e55b27d7a0743ddefd"
+  },
+  "tools/e2e_local.py": {
+    "mtime": 1792004906.8333468,
+    "seen": 1792006647.5200167,
+    "ast_hash": "b6502229ffe98f4c90c66dfbcd7208d0",
+    "semantic_hash": "b6502229ffe98f4c90c66dfbcd7208d0"
+  },
+  "tools/glowtrack.py": {
+    "mtime": 1791987702.081501,
+    "seen": 1792006647.5200171,
+    "ast_hash": "1d7be675d3761837f21445378c7fd74b",
+    "semantic_hash": "1d7be675d3761837f21445378c7fd74b"
+  },
+  "tools/local_jellyfin.sh": {
+    "mtime": 1791987788.7946632,
+    "seen": 1792006647.5200176,
+    "ast_hash": "67deb3821dfcf5804c9d0fc82cfad0da",
+    "semantic_hash": "67deb3821dfcf5804c9d0fc82cfad0da"
+  },
+  "tools/local_jellyfin_native.sh": {
+    "mtime": 1791988762.3459907,
+    "seen": 1792006647.5200183,
+    "ast_hash": "b7ed7c42f797c34ac316f13dfdb4fbf0",
+    "semantic_hash": "b7ed7c42f797c34ac316f13dfdb4fbf0"
+  },
+  "tools/make_fixtures.sh": {
+    "mtime": 1791987726.170455,
+    "seen": 1792006647.5200193,
+    "ast_hash": "a40bacd073399d7ae61c53ab04b805de",
+    "semantic_hash": "a40bacd073399d7ae61c53ab04b805de"
+  },
+  "tools/package_plugin.sh": {
+    "mtime": 1791987788.7726648,
+    "seen": 1792006647.5200198,
+    "ast_hash": "9aa6f3c6e388404c57aa23f112842e0b",
+    "semantic_hash": "9aa6f3c6e388404c57aa23f112842e0b"
+  },
+  ".github/copilot-instructions.md": {
+    "mtime": 1791986047.285585,
+    "seen": 1792006647.5200205,
+    "ast_hash": "f79f9b8ce5202fac35a701c7c50ec7a6",
+    "semantic_hash": "f79f9b8ce5202fac35a701c7c50ec7a6"
+  },
+  "AGENTS.md": {
+    "mtime": 1792006099.6182377,
+    "seen": 1792006647.5200212,
+    "ast_hash": "84b9c71829be06d9bd5ef770cbe52dad",
+    "semantic_hash": "84b9c71829be06d9bd5ef770cbe52dad"
+  },
+  "CLAUDE.md": {
+    "mtime": 1791986047.2675905,
+    "seen": 1792006647.520022,
+    "ast_hash": "dfa22d63914bd14c32f05b16fbd6a674",
+    "semantic_hash": "dfa22d63914bd14c32f05b16fbd6a674"
+  },
+  "README.md": {
+    "mtime": 1792006339.9964893,
+    "seen": 1792006647.5200226,
+    "ast_hash": "9f91297346c3ee84f721bc9caf22a5b5",
+    "semantic_hash": "9f91297346c3ee84f721bc9caf22a5b5"
+  },
+  "docs/DEPLOY.md": {
+    "mtime": 1792005648.6470885,
+    "seen": 1792006647.5200233,
+    "ast_hash": "49057f84d78581df66164377f7adc88f",
+    "semantic_hash": "49057f84d78581df66164377f7adc88f"
+  },
+  "docs/DESIGN.md": {
+    "mtime": 1791986541.4893916,
+    "seen": 1792006647.520024,
+    "ast_hash": "44084b0c75f22603fa6f1455ccab2a59",
+    "semantic_hash": "44084b0c75f22603fa6f1455ccab2a59"
+  },
+  "docs/PROTOCOL.md": {
+    "mtime": 1791991312.791571,
+    "seen": 1792006647.5200253,
+    "ast_hash": "51061e57b56efc7146e013b79e7e3bbe",
+    "semantic_hash": "51061e57b56efc7146e013b79e7e3bbe"
+  },
+  "instructions.md": {
+    "mtime": 1791986224.3753595,
+    "seen": 1792006647.520026,
+    "ast_hash": "139f5a7a6c3a6b7109ca8ca2443a2eca",
+    "semantic_hash": "139f5a7a6c3a6b7109ca8ca2443a2eca"
+  },
+  "plugin/Jellyfin.Plugin.JellyWled/Configuration/configPage.html": {
+    "mtime": 1791991363.0030146,
+    "seen": 1792006647.5200267,
+    "ast_hash": "50549247667513cbff67d579bcd68e8c",
+    "semantic_hash": "50549247667513cbff67d579bcd68e8c"
+  },
+  "plugin/build.yaml": {
+    "mtime": 1791986671.3950083,
+    "seen": 1792006647.5200274,
+    "ast_hash": "5d4487115cc3b0bdfdc04110b04a1dca",
+    "semantic_hash": "5d4487115cc3b0bdfdc04110b04a1dca"
+  }
+}

@@ -37,3 +37,5 @@ __pycache__/
 # Test fixtures generated locally
 tools/fixtures/**/*.mp4
 tools/fixtures/**/*.mkv
+graphify-out/cache/
+graphify-out/.graphify_*
