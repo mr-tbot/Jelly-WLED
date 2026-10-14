@@ -7,11 +7,13 @@ Read in this order every session: this file, `instructions.md`, `.agent/MEMORY.m
 ## Repository layout
 
 ```
-plugin/                      C# Jellyfin plugin (net10.0, Jellyfin.Controller 12.1.0)
+plugin/                      C# Jellyfin plugin (net10.0, Jellyfin.Controller 12.1.0); deployed on BOT-SERVER as Jelly-WLED_1.0.0.0
   Jellyfin.Plugin.JellyWled/  Plugin.cs, Configuration/, Api/, Analysis/, Output/, Sessions/, ScheduledTasks/
   Jellyfin.Plugin.JellyWled.Tests/   xUnit tests (mapping, color pipeline, DDP, track files, sync math)
   build.yaml                 jprm-style manifest (name, guid, version, targetAbi, framework)
-android/                     Android app "Jelly-WLED Glow" (Kotlin, Compose, minSdk 26, targetSdk 36; TV + phone)
+android/                     Android app "Jelly-WLED Glow" (Kotlin, Compose BOM 2026.08, AGP 9.3, minSdk 26, targetSdk 36; TV + phone)
+  app/src/main/java/com/mrtbot/jellywled/{data,glow,net,service,ui}   settings, protocol math, Jellyfin client, GlowService, Compose screens
+  app/src/debug/             DebugConfigReceiver (test hook, debug builds only)
 tools/                       Python helpers: ddp_sim.py (WLED simulator), glowtrack.py (track inspector), make_fixtures.sh
 docs/                        PROTOCOL.md (contract), DESIGN.md (why), DEPLOY.md (prod runbook)
 dist/                        built plugin zips + manifest.json (gitignored)
@@ -28,7 +30,7 @@ Prerequisites on this machine: .NET 10 SDK at `~/.dotnet` (`export PATH=$HOME/.d
 - Local Jellyfin for testing: `tools/local_jellyfin_native.sh install <tarball>|up|down|logs|status` (portable Jellyfin 12.1 under `.agent/jf-native/`, port 8096, admin `jellywled`/`jellywled`; preferred here because Docker pulls are slow on this link) or `tools/local_jellyfin.sh up|down|logs` (Docker `jellyfin/jellyfin:12.1`, port 8097). Both copy/mount `dist/plugin` as `Jelly-WLED_dev`; run `tools/package_plugin.sh` then restart to reload the plugin.
 - End-to-end without hardware: `tools/ddp_sim.py` + `tools/e2e_local.py` (see README). The full chain used before a prod deploy is `.agent/e2e/verify_and_deploy.sh` (build, tests, package, local restart, two e2e scenarios, headless dashboard check, deploy only when prod is idle).
 - WLED simulator: `python3 tools/ddp_sim.py --top 32 --right 18 --bottom 32 --left 18 --http-port 8080`.
-- Android: `cd android && ./gradlew assembleDebug` (wrap with `aw run --class build`), install with `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk`. Claim the device first: `devlock claim <id> --why '...'`.
+- Android: `cd android && ./gradlew assembleDebug testDebugUnitTest` (run it directly; `aw run` was seen to skip Gradle silently, check the APK timestamp), install with `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk`. Claim the device first: `devlock claim <id> --why '...'`. Never `am force-stop` the app before a broadcast: a force-stopped app receives none. Debug builds have `DebugConfigReceiver` (action `com.mrtbot.jellywled.DEBUG_CONFIG`, extras serverUrl/token/userId/followMode/nodes/glowEnabled/test) so `.agent/e2e/phone_test.sh` can drive the app without the UI. Android TV AVD: `jellywled_tv` (system-images;android-36;android-tv;x86_64).
 - Prod deploy: see `docs/DEPLOY.md`. Never restart the prod container while `GET /Sessions` shows active playback.
 
 ## Conventions
