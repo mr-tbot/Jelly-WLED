@@ -17,8 +17,8 @@ import org.json.JSONArray
  * Debug builds only. Applies settings sent from adb so the end-to-end test can drive the app without the UI:
  *
  * adb shell am broadcast -n com.mrtbot.jellywled/.DebugConfigReceiver -a com.mrtbot.jellywled.DEBUG_CONFIG \
- *   --es serverUrl http://10.0.101.100:8096 --es token <token> --es userId <id> --es followMode anyOfUser \
- *   --es nodesB64 "$(echo -n '[{"name":"sim","host":"10.0.101.100","ddpPort":4050,"httpPort":8090}]' | base64 -w0)" --ez glowEnabled true
+ *   --es serverUrl http://192.168.1.20:8096 --es token <token> --es userId <id> --es followMode anyOfUser \
+ *   --es nodesB64 "$(echo -n '[{"name":"sim","host":"192.168.1.20","ddpPort":4050,"httpPort":8090}]' | base64 -w0)" --ez glowEnabled true
  *
  * Extras are optional; only the ones present are changed. `test=<pattern>` with `testNode=<node id or name>` and
  * `testSeconds=<n>` runs a test pattern.

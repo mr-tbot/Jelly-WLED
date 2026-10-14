@@ -1,6 +1,6 @@
 # Deploying the plugin to a production Jellyfin server
 
-This is the runbook used for the owner's server (BOT-SERVER: Jellyfin 12.1 in Docker, container `jellyfin`, config bind-mounted from the host). Adapt paths for other installs.
+This is the runbook used for the owner's server (Jellyfin 12.1 in Docker, container `jellyfin`, config bind-mounted from the host; the SSH alias `server` stands for it below). Adapt paths for other installs.
 
 ## Before touching production
 
@@ -20,9 +20,9 @@ This is the runbook used for the owner's server (BOT-SERVER: Jellyfin 12.1 in Do
 ```bash
 # from this repository
 VERSION=$(grep -m1 '^version:' plugin/build.yaml | cut -d'"' -f2)
-ssh botserver "rm -rf ~/jelly-wled-stage && mkdir -p ~/jelly-wled-stage/Jelly-WLED_$VERSION"
-scp dist/plugin/Jellyfin.Plugin.JellyWled.dll dist/plugin/meta.json "botserver:~/jelly-wled-stage/Jelly-WLED_$VERSION/"
-ssh botserver "docker cp ~/jelly-wled-stage/Jelly-WLED_$VERSION jellyfin:/config/plugins/ && docker restart jellyfin"
+ssh server "rm -rf ~/jelly-wled-stage && mkdir -p ~/jelly-wled-stage/Jelly-WLED_$VERSION"
+scp dist/plugin/Jellyfin.Plugin.JellyWled.dll dist/plugin/meta.json "server:~/jelly-wled-stage/Jelly-WLED_$VERSION/"
+ssh server "docker cp ~/jelly-wled-stage/Jelly-WLED_$VERSION jellyfin:/config/plugins/ && docker restart jellyfin"
 ```
 
 The bind-mounted `config/plugins` folder on this host is owned by root, so the files go in through `docker cp` (the container runs as root and reads them fine). On installs where the folder is writable, `scp` straight into it works too.
@@ -33,7 +33,7 @@ The bind-mounted `config/plugins` folder on this host is owned by root, so the f
 curl -s -H "Authorization: MediaBrowser Token=$JELLYFIN_API_KEY" "$JELLYFIN_URL/Plugins" \
   | python3 -c 'import json,sys; print([(p["Name"],p["Version"],p["Status"]) for p in json.load(sys.stdin) if "WLED" in p["Name"]])'
 curl -s -H "Authorization: MediaBrowser Token=$JELLYFIN_API_KEY" "$JELLYFIN_URL/JellyWled/Status" | head -c 600
-ssh botserver "docker logs --since 5m jellyfin 2>&1 | grep -i jellywled | tail -20"
+ssh server "docker logs --since 5m jellyfin 2>&1 | grep -i jellywled | tail -20"
 ```
 
 Expected: status `Active`, the Status route answers JSON, the log shows "Session tracker started", "Analysis queue started" and no exceptions.
@@ -41,7 +41,7 @@ Expected: status `Active`, the Status route answers JSON, the log shows "Session
 ## Roll back
 
 ```bash
-ssh botserver "docker exec jellyfin rm -rf /config/plugins/Jelly-WLED_$VERSION && docker restart jellyfin"
+ssh server "docker exec jellyfin rm -rf /config/plugins/Jelly-WLED_$VERSION && docker restart jellyfin"
 ```
 
 The plugin stores its configuration in `config/plugins/configurations/Jellyfin.Plugin.JellyWled.xml` and its tracks under `config/data/jellywled/tracks/` (or the configured cache directory). Delete those too for a complete removal.
