@@ -9,7 +9,7 @@ Jelly-WLED is two pieces that share one protocol:
 
 Because the server does the analysis, it works with every Jellyfin client unchanged: Android TV, Android, web, iOS, Roku, Kodi. The clients only need to report playback progress, which they already do.
 
-> Status: in active development (October 2026). The plugin targets Jellyfin 12.x. Expect rough edges and read the troubleshooting section.
+> Status: first release (October 2026). The plugin targets Jellyfin 12.x and has been run against a real server and real WLED hardware; the Android app has been tested on a phone and an Android TV emulator. Read the troubleshooting section when something does not light up.
 
 ## How it works
 
@@ -61,12 +61,15 @@ Open **Dashboard > Plugins > Jelly-WLED**. Every option is on that page; the sam
 
 ## The Android app (bridge mode)
 
-1. Install the APK on the TV box or phone that shares a network with the WLED controller.
-2. **Connect**: server address and your Jellyfin login (an API key also works).
-3. **Follow**: pick the session to follow, normally the Jellyfin app on the same TV. "Any session of my user" follows whatever you play.
-4. **Strip**: pick the WLED controller (found automatically on the network or typed in) and set the LED layout; run **Show sides** and **Chase** to verify.
-5. **Picture**: brightness, color richness, gamma, smoothing, frames per second, sync offset.
-6. Switch the glow on. The app keeps a small foreground service running with a status notification; on Android TV it can start at boot.
+"Jelly-WLED Glow" runs on Android TV (Android 8.0 or newer, D-pad only) and on phones. It lives in `android/`; the debug build is `android/app/build/outputs/apk/debug/app-debug.apk`, a release build comes from `./gradlew assembleRelease` (sign it with your own key).
+
+1. Install the APK on the TV box or phone that shares a network with the WLED controllers.
+2. **Connect**: server address and your Jellyfin login (an API key also works). "Test connection" shows the server name and version.
+3. **Follow**: pick the session to follow, normally the Jellyfin app on the same TV, or "Any session of my user" to follow whatever you play.
+4. **Nodes**: add every WLED controller in the room ("Find on network" lists the ones announcing themselves, or type a host). Each node has its own LED layout, mode (edges follow the picture, or the average color for lamps and light bars), brightness, color richness, gamma, smoothing, frames per second, sync offset, and whether to leave live mode when playback stops. **Show sides** and **Chase** verify the layout.
+5. **Status**: switch the glow on, optionally start on boot. The app keeps a small foreground service with a status notification showing the followed item, the node count and the frame rate; it releases the strips after two minutes of pause and reconnects by itself when the server goes away and comes back.
+
+The app never captures the screen and asks for no special permissions beyond notifications (Android 13 and newer). It talks to the server over the address you enter, so use HTTPS when the server is remote.
 
 ## Build from source
 
