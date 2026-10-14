@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Jellyfin.Plugin.JellyWled/Jellyfin.Plugin.JellyWled.csproj" />
+  <Project Path="Jellyfin.Plugin.JellyWled.Tests/Jellyfin.Plugin.JellyWled.Tests.csproj" />
+</Solution>

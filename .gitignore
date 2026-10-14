@@ -35,5 +35,5 @@ __pycache__/
 .venv/
 
 # Test fixtures generated locally
-tools/fixtures/*.mp4
-tools/fixtures/*.mkv
+tools/fixtures/**/*.mp4
+tools/fixtures/**/*.mkv
