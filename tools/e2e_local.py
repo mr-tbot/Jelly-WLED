@@ -90,6 +90,7 @@ def main():
     ap.add_argument("--seek-after", type=float, default=0, help="seconds into playback at which the fake client seeks (0 = no seek)")
     ap.add_argument("--seek-to-ms", type=int, default=0, help="position the fake client seeks to")
     ap.add_argument("--delete-track", action="store_true", help="delete the item's track first (tests on-demand analysis)")
+    ap.add_argument("--extra-csv", action="append", default=[], help="another simulator CSV to check against the same timeline (for example the one a bridge app feeds)")
     ap.add_argument("--user", default="jellywled")
     ap.add_argument("--password", default="jellywled")
     args = ap.parse_args()
@@ -201,21 +202,32 @@ def main():
     t_end = time.monotonic()
     time.sleep(2)
 
-    # Evaluate the simulator CSV: rows after t0 (unix ms) -> side colors vs schedule. Columns:
+    # Evaluate the simulator CSV(s): rows after t0 (unix ms) -> side colors vs schedule. Columns:
     # unix_ms, frame_index, led_count, top r g b, right r g b, bottom r g b, left r g b, led0 r g b
     wall_t0 = time.time() - (t_end - t0) - 2
     wall_seek = None if seek_wall is None else wall_t0 + (seek_wall - t0)
+    worst = 0
+    for path in [args.csv] + list(args.extra_csv):
+        rc = evaluate(path, wall_t0, wall_seek, args)
+        worst = max(worst, rc)
+    if worst == 0:
+        log("PASS")
+    return worst
+
+
+def evaluate(path, wall_t0, wall_seek, args):
     rows = []
-    with open(args.csv, newline="") as fh:
+    with open(path, newline="") as fh:
         for row in csv.reader(fh):
             if not row or not row[0].isdigit():
                 continue
             rows.append([int(float(x)) for x in row])
     rows = [r for r in rows if r[0] >= int(wall_t0 * 1000)]
     if not rows:
-        log("FAIL: the simulator received no frames during playback")
+        log("FAIL (%s): the simulator received no frames during playback" % path)
         return 1
-    log("simulator frames during playback: %d (led count %d)" % (len(rows), rows[-1][2]))
+    span = (rows[-1][0] - rows[0][0]) / 1000.0
+    log("%s: %d frames during playback (led count %d, %.1f fps)" % (path, len(rows), rows[-1][2], (len(rows) - 1) / span if span > 0 else 0))
     checked = ok = 0
     first_good = None
     for r in rows:
@@ -226,8 +238,9 @@ def main():
                 continue  # the seek itself takes a report to arrive
         else:
             t = (wall - wall_t0) + args.start_ms / 1000.0
-        # Skip the first second after every color change (smoothing and report granularity).
-        if t % 10 < 1.0 or t % 10 > 9.0:
+        # Skip the first second after every color change (smoothing and report granularity), and anything past
+        # the 60 s fixture (the plugin drops a session that ran past the end).
+        if t % 10 < 1.0 or t % 10 > 9.0 or t > 59.0:
             continue
         sides = {"top": r[3:6], "right": r[6:9], "bottom": r[9:12], "left": r[12:15]}
         good = all(close(sides[s], expected_color(s, t), 60) for s in sides)
@@ -236,11 +249,10 @@ def main():
             ok += 1
             if first_good is None:
                 first_good = t
-    log("color checks: %d/%d frames match the schedule; first match at t=%.1fs" % (ok, checked, first_good if first_good is not None else -1))
+    log("%s: color checks %d/%d frames match the schedule; first match at t=%.1fs" % (path, ok, checked, first_good if first_good is not None else -1))
     if checked == 0 or ok < checked * 0.7:
-        log("FAIL: colors did not follow the fixture schedule")
+        log("FAIL (%s): colors did not follow the fixture schedule" % path)
         return 1
-    log("PASS")
     return 0
 
 
