@@ -11,8 +11,10 @@ class SyncTest {
     fun positionExtrapolatesWithTheServerClockAndHoldsWhilePaused() {
         val clock = SyncClock()
         assertNull(clock.offsetMs)
-        // The server is 1000 ms ahead; the hello took 40 ms round trip and arrived 20 ms after it was stamped.
-        clock.hello(serverTimeMs = 101_000, receivedAtMs = 100_020, rttMs = 40)
+        // The server is 1000 ms ahead; the hello took 20 ms to arrive, so the estimate is 980 (20 ms late).
+        clock.sample(serverTimeMs = 101_000, receivedAtMs = 100_020)
+        assertEquals(980L, clock.offsetMs)
+        clock.sample(serverTimeMs = 106_000, receivedAtMs = 105_000) // a ping with no delay: exact
         assertEquals(1000L, clock.offsetMs)
         // Reported at server time 101 500 at 60 s; local now 101 000 = server 102 000, so 500 ms later.
         val ticks = 60_000L * 10_000
@@ -23,15 +25,15 @@ class SyncTest {
     @Test
     fun theFastestRecentSampleWinsAndOldSamplesAge() {
         val clock = SyncClock(window = 3)
-        clock.hello(10_000, 9_100, rttMs = 100) // low bound 900, + 50 = 950
-        clock.ping(15_000, 14_200) // a slow ping (low bound 800) does not lower the estimate
-        assertEquals(950L, clock.offsetMs)
-        clock.ping(20_000, 19_090) // a faster one raises it
-        assertEquals(960L, clock.offsetMs)
-        clock.ping(25_000, 24_200)
-        clock.ping(30_000, 29_200)
-        clock.ping(35_000, 34_200) // the fast samples left the window of 3
-        assertEquals(850L, clock.offsetMs)
+        clock.sample(10_000, 9_100) // 900
+        clock.sample(15_000, 14_200) // a slow one (800) does not lower the estimate
+        assertEquals(900L, clock.offsetMs)
+        clock.sample(20_000, 19_090) // a faster one raises it
+        assertEquals(910L, clock.offsetMs)
+        clock.sample(25_000, 24_200)
+        clock.sample(30_000, 29_200)
+        clock.sample(35_000, 34_200) // the fast samples left the window of 3
+        assertEquals(800L, clock.offsetMs)
     }
 
     @Test

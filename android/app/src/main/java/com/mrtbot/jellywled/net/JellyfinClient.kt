@@ -54,7 +54,6 @@ sealed interface GlowEvent {
     data class Hello(
         val serverTimeMs: Long,
         val receivedAtMs: Long,
-        val rttMs: Long?,
         val pluginVersion: String,
         val analysisFps: Int,
         val ringW: Int,
@@ -156,14 +155,9 @@ class JellyfinClient(serverUrl: String, private val token: String?, private val 
 
     private fun connect(): Flow<GlowEvent> = callbackFlow {
         val req = request(url("JellyWled/Events")).header("Accept", "text/event-stream").build()
-        var rtt: Long? = null
         val source = EventSources.createFactory(http).newEventSource(req, object : EventSourceListener() {
-            override fun onOpen(eventSource: EventSource, response: Response) {
-                rtt = response.receivedResponseAtMillis - response.sentRequestAtMillis
-            }
-
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                val event = runCatching { parseEvent(type, data, SyncClock.nowMs(), rtt) }.getOrNull()
+                val event = runCatching { parseEvent(type, data, SyncClock.nowMs()) }.getOrNull()
                 if (event != null) trySend(event)
             }
 
@@ -260,11 +254,11 @@ class JellyfinClient(serverUrl: String, private val token: String?, private val 
             )
         }
 
-        fun parseEvent(type: String?, data: String, receivedAtMs: Long, rttMs: Long?): GlowEvent? {
+        fun parseEvent(type: String?, data: String, receivedAtMs: Long): GlowEvent? {
             val o = JSONObject(data)
             return when (type) {
                 "hello" -> GlowEvent.Hello(
-                    o.optLong("serverTimeMs"), receivedAtMs, rttMs, o.str("pluginVersion").orEmpty(),
+                    o.optLong("serverTimeMs"), receivedAtMs, o.str("pluginVersion").orEmpty(),
                     o.optInt("analysisFps"), o.optInt("ringW"), o.optInt("ringH"),
                 )
                 "state" -> GlowEvent.State(parseState(o))

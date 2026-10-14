@@ -187,7 +187,7 @@ class GlowService : Service() {
         val now = System.currentTimeMillis()
         when (e) {
             is GlowEvent.Hello -> {
-                clock.hello(e.serverTimeMs, e.receivedAtMs, e.rttMs)
+                clock.sample(e.serverTimeMs, e.receivedAtMs)
                 helloGeometry = Triple(e.ringW.takeIf { it > 0 } ?: 32, e.ringH.takeIf { it > 0 } ?: 18, e.analysisFps.takeIf { it > 0 } ?: 10)
                 connection = "Connected (Jelly-WLED ${e.pluginVersion})"
                 lastError = null
@@ -198,7 +198,7 @@ class GlowService : Service() {
                     sessions.keys.removeAll { (seenAt[it] ?: 0L) < now }
                 }
             }
-            is GlowEvent.Ping -> clock.ping(e.serverTimeMs, e.receivedAtMs)
+            is GlowEvent.Ping -> clock.sample(e.serverTimeMs, e.receivedAtMs)
             is GlowEvent.State -> {
                 val s = e.state
                 val old = sessions.put(s.sessionId, s)
