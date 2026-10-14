@@ -7,7 +7,7 @@ Read in this order every session: this file, `instructions.md`, `.agent/MEMORY.m
 ## Repository layout
 
 ```
-plugin/                      C# Jellyfin plugin (net10.0, Jellyfin.Controller 12.1.0); deployed on BOT-SERVER as Jelly-WLED_1.0.0.0
+plugin/                      C# Jellyfin plugin (net10.0, Jellyfin.Controller 12.1.0); deployed on the owner's production server as Jelly-WLED_1.0.0.0
   Jellyfin.Plugin.JellyWled/  Plugin.cs, Configuration/, Api/, Analysis/, Output/, Sessions/, ScheduledTasks/
   Jellyfin.Plugin.JellyWled.Tests/   xUnit tests (mapping, color pipeline, DDP, track files, sync math)
   build.yaml                 jprm-style manifest (name, guid, version, targetAbi, framework)
