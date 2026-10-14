@@ -1,0 +1,39 @@
+# --- TBOT agent system ---
+.agent/
+creds.md
+creds.md.enc
+change-these-keys.md
+*.bak
+# Common secret files
+.env
+.env.*
+*.pem
+*.key
+*.jks
+*.keystore
+
+# .NET
+plugin/**/bin/
+plugin/**/obj/
+plugin/**/*.user
+dist/
+
+# Android
+android/.gradle/
+android/build/
+android/**/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/**/*.iml
+android/captures/
+android/.kotlin/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Test fixtures generated locally
+tools/fixtures/*.mp4
+tools/fixtures/*.mkv
