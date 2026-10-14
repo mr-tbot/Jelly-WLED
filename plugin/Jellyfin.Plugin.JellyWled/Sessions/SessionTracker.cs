@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +22,7 @@ public sealed class SessionTracker : IHostedService, IDisposable
     private readonly ISessionManager _sessionManager;
     private readonly ILogger<SessionTracker> _logger;
     private readonly ConcurrentDictionary<string, PlaybackState> _states = new(StringComparer.Ordinal);
+    private Timer? _reconcile;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SessionTracker"/> class.
@@ -90,31 +92,75 @@ public sealed class SessionTracker : IHostedService, IDisposable
         }
 
         _logger.LogInformation("[JellyWled] Session tracker started ({Count} active)", _states.Count);
+        _reconcile = new Timer(_ => Reconcile(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
+        if (_reconcile is not null)
+        {
+            await _reconcile.DisposeAsync().ConfigureAwait(false);
+            _reconcile = null;
+        }
+
         _sessionManager.PlaybackStart -= OnPlaybackStart;
         _sessionManager.PlaybackProgress -= OnPlaybackProgress;
         _sessionManager.PlaybackStopped -= OnPlaybackStopped;
         _sessionManager.SessionEnded -= OnSessionEnded;
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        // Events are detached in StopAsync; nothing else to release.
+        _reconcile?.Dispose();
+    }
+
+    /// <summary>
+    /// Drops states whose Jellyfin session is gone, plays something else, or has run past the end of the item.
+    /// Start and stop events are queued by the server and can arrive out of order; this keeps the view honest.
+    /// </summary>
+    private void Reconcile()
+    {
+        try
+        {
+            var live = _sessionManager.Sessions.ToDictionary(s => s.Id, s => s, StringComparer.Ordinal);
+            foreach (var (id, state) in _states.ToArray())
+            {
+                var reason = string.Empty;
+                if (!live.TryGetValue(id, out var session))
+                {
+                    reason = "session gone";
+                }
+                else if (session.NowPlayingItem is null || session.NowPlayingItem.Id != state.ItemId)
+                {
+                    reason = "now playing changed";
+                }
+                else if (state.RunTimeTicks > 0 && state.PositionMsNow() > (state.RunTimeTicks / 10_000) + 10_000)
+                {
+                    reason = "past the end";
+                }
+
+                if (reason.Length > 0 && _states.TryRemove(id, out var removed))
+                {
+                    _logger.LogInformation("[JellyWled] Dropping session {Device} ({Reason})", removed.DeviceName, reason);
+                    Changed?.Invoke(SessionChange.Stopped, removed);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "[JellyWled] Session reconcile failed");
+        }
     }
 
     private static PlaybackState? Build(PlaybackProgressEventArgs e)
     {
         var session = e.Session;
-        if (session is null || e.Item is null)
+        if (session is null || e.Item is not Video)
         {
-            return null;
+            return null; // only video can have a glow track; music and photos never drive the strip
         }
 
         var position = e.PlaybackPositionTicks ?? session.PlayState?.PositionTicks ?? 0;
@@ -131,7 +177,8 @@ public sealed class SessionTracker : IHostedService, IDisposable
             e.MediaSourceId ?? session.PlayState?.MediaSourceId,
             e.Item.RunTimeTicks ?? 0,
             position,
-            e.IsPaused);
+            e.IsPaused,
+            session.LastPlaybackCheckIn);
     }
 
     private void OnPlaybackStart(object? sender, PlaybackProgressEventArgs e)
@@ -187,6 +234,13 @@ public sealed class SessionTracker : IHostedService, IDisposable
         {
             var sessionId = e.Session?.Id;
             if (sessionId is null)
+            {
+                return;
+            }
+
+            // Stop and start of the next episode are queued separately and can swap order: only drop the state
+            // when it still refers to the item that stopped.
+            if (_states.TryGetValue(sessionId, out var current) && e.Item is not null && current.ItemId != e.Item.Id)
             {
                 return;
             }

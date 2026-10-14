@@ -33,5 +33,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         serviceCollection.AddSingleton<EventHub>();
         serviceCollection.AddHostedService(sp => sp.GetRequiredService<EventHub>());
+
+        serviceCollection.AddHostedService<LibraryWatcher>();
     }
 }

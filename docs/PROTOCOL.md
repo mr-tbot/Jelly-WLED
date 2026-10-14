@@ -53,7 +53,7 @@ Readers must tolerate an unfinalized segment: the number of readable frames is `
 
 ### 1.3 Track stream (HTTP)
 
-`GET /JellyWled/Track/{itemId}?mediaSourceId=&fromMs=0&analyze=true` returns `application/octet-stream`, chunked: the same 64-byte header (with `startFrame` = first frame sent and `frameCount` = 0, `flags` bit 0 clear) followed by frames in order from `floor(fromMs * fps / 1000)`. The response ends at the first gap in the track or when analysis has produced nothing new for 15 seconds; the client re-requests from its current position. Response header `X-JellyWled-Track: complete|partial|analyzing|none` says what the server has for the item. With `analyze=true` and on-demand analysis enabled, a missing or gapped track starts an analysis job at `fromMs` and the response streams frames as they are produced (initial wait up to 15 s).
+`GET /JellyWled/Track/{itemId}?mediaSourceId=&fromMs=0&analyze=true` returns `application/octet-stream`, chunked: the same 64-byte header (with `startFrame` = first frame sent and `frameCount` = 0, `flags` bit 0 clear) followed by frames in order from `floor(fromMs * fps / 1000)`. The response ends at the first gap in the track or when analysis has produced nothing new for 15 seconds; the client re-requests from its current position. Response header `X-JellyWled-Track: complete|partial|analyzing|none` says what the server has for the item. With `analyze=true` and on-demand analysis enabled (administrators and API keys may analyze even when it is off), a missing or gapped track starts an analysis job at `fromMs` and the response streams frames as they are produced (initial wait up to 15 s). A non-administrator may have at most three analyses queued at once; further requests answer 429. Items that are not local video files answer 404.
 
 ## 2. Playback state (SSE)
 
@@ -87,7 +87,7 @@ Per output frame, per LED, in this order (identical in C# and Kotlin, with 0-255
 
 1. **Saturation** `S` (percent, 100 = unchanged): `gray = 0.299 R + 0.587 G + 0.114 B`, `c' = clamp(gray + (c - gray) * S/100)`.
 2. **Gamma** `G` (default 2.2): lookup table `lut[v] = round(255 * (v/255)^G)`.
-3. **Brightness** `B` (percent): `c'' = floor(lut[c'] * B/100)`.
+3. **Brightness** `B` (percent): `c'' = trunc(lut[c'] * (B / 100.0))` (floating-point multiply, then truncate; both implementations do exactly this).
 4. **Smoothing** `K` (percent of the previous value kept, default 35): `v = prev + (cur - prev) * (1 - K/100)`, rounded *toward* the target (ceil when rising, floor when falling) so heavy smoothing still reaches black and white.
 
 Missing frames (gap, analysis not there yet, no track): fade the previous colors to black at the smoothing rate.
@@ -105,7 +105,7 @@ One frame is sent as one or more packets of at most 1440 data bytes (480 RGB LED
 | 4-7 | byte offset of this chunk in the frame |
 | 8-9 | data length in bytes |
 
-WLED enters realtime mode on the first packet and leaves it when packets stop for its realtime timeout (default 2.5 s). Before streaming, the sender reads `GET http://<host>/json/state` (remembering `on` and `bri`) and posts `{"on":true,"bri":<brightness>}`; after streaming it posts `{"live":false}` and, if `RestoreState` is set, the remembered `on`/`bri`.
+WLED enters realtime mode on the first packet and leaves it when packets stop for its realtime timeout (default 2.5 s). WLED itself lights an "off" strip at its last brightness while live data arrives and turns it off again afterwards, so no on/off handshake is needed. When playback stops the sender sends one black frame and, if the device's *leave live mode* option (`RestoreState`) is set, posts `{"live":false}` to `http://<host>:<httpPort>/json/state` so the strip returns to its own effect immediately instead of after the timeout. WLED scales live pixels by its master brightness, so the effective brightness is the pipeline's brightness times WLED's.
 
 Test patterns (same as ButterFlyEffect-Player): `sides` = top red (255,0,0), right green (0,255,0), bottom blue (0,60,255), left yellow (255,200,0), LED 0 white; `chase` = one white LED walking the strip at 20 LEDs per second; `white`; `off`.
 

@@ -30,6 +30,15 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public int BandPercent { get; set; } = 8;
 
+    /// <summary>Gets the ring width every component uses (clamped to 4-128).</summary>
+    public int EffectiveRingWidth => System.Math.Clamp(RingWidth, 4, 128);
+
+    /// <summary>Gets the ring height every component uses (clamped to 3-72).</summary>
+    public int EffectiveRingHeight => System.Math.Clamp(RingHeight, 3, 72);
+
+    /// <summary>Gets the analysis frame rate every component uses (clamped to 1-60).</summary>
+    public int EffectiveFps => System.Math.Clamp(AnalysisFps, 1, 60);
+
     /// <summary>
     /// Gets or sets a value indicating whether black letterbox and pillarbox bars are detected and cropped before analysis.
     /// </summary>

@@ -20,13 +20,20 @@ public sealed class SegmentReader : IDisposable
         Path = path;
         _stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 12);
         var head = new byte[SegmentHeader.Size];
-        if (_stream.Read(head, 0, head.Length) != head.Length)
+        try
+        {
+            if (_stream.Read(head, 0, head.Length) != head.Length)
+            {
+                throw new InvalidDataException("Segment too short.");
+            }
+
+            Header = SegmentHeader.Parse(head);
+        }
+        catch
         {
             _stream.Dispose();
-            throw new InvalidDataException("Segment too short.");
+            throw;
         }
-
-        Header = SegmentHeader.Parse(head);
     }
 
     /// <summary>Gets the file path.</summary>
@@ -42,7 +49,7 @@ public sealed class SegmentReader : IDisposable
         {
             lock (_lock)
             {
-                var length = new FileInfo(Path).Length;
+                var length = _stream.Length; // refreshed from the handle, so a renamed file still reads
                 var n = Math.Max(0, (length - SegmentHeader.Size) / Header.FrameBytes);
                 return Header.IsFinalized ? Math.Min(n, Header.FrameCount) : n;
             }

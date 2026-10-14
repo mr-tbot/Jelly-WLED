@@ -24,7 +24,8 @@ public sealed class PlaybackState
     /// <param name="runTimeTicks">Runtime in ticks.</param>
     /// <param name="positionTicks">Reported position in ticks.</param>
     /// <param name="isPaused">Whether paused.</param>
-    public PlaybackState(string sessionId, string deviceId, string deviceName, string client, Guid userId, string userName, Guid itemId, string itemName, string? mediaSourceId, long runTimeTicks, long positionTicks, bool isPaused)
+    /// <param name="reportedAtUtc">When the client's report reached the server (null = now).</param>
+    public PlaybackState(string sessionId, string deviceId, string deviceName, string client, Guid userId, string userName, Guid itemId, string itemName, string? mediaSourceId, long runTimeTicks, long positionTicks, bool isPaused, DateTime? reportedAtUtc = null)
     {
         SessionId = sessionId;
         DeviceId = deviceId;
@@ -38,8 +39,11 @@ public sealed class PlaybackState
         RunTimeTicks = runTimeTicks;
         PositionTicks = positionTicks;
         IsPaused = isPaused;
-        ReportedAtUtcMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        ReportedAtStopwatch = Stopwatch.GetTimestamp();
+        var now = DateTime.UtcNow;
+        var reported = reportedAtUtc is { } r && r <= now && now - r < TimeSpan.FromSeconds(30) ? r : now;
+        var age = now - reported;
+        ReportedAtUtcMs = new DateTimeOffset(reported).ToUnixTimeMilliseconds();
+        ReportedAtStopwatch = Stopwatch.GetTimestamp() - (long)(age.TotalSeconds * Stopwatch.Frequency);
     }
 
     /// <summary>Gets the session id.</summary>

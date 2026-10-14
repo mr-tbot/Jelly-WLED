@@ -25,7 +25,8 @@ Prerequisites on this machine: .NET 10 SDK at `~/.dotnet` (`export PATH=$HOME/.d
 - Plugin build: `cd plugin && dotnet build -c Release` (wrap long builds: `aw run --class build -- dotnet build -c Release`).
 - Plugin tests: `cd plugin && dotnet test`.
 - Package: `tools/package_plugin.sh` -> `dist/jelly-wled_<version>.zip` + `dist/manifest.json`.
-- Local Jellyfin for testing: `tools/local_jellyfin.sh up|down|logs` (Docker `jellyfin/jellyfin:12.1`, config under `.agent/jf-local/`, plugin folder bind-mounted, fixtures library).
+- Local Jellyfin for testing: `tools/local_jellyfin_native.sh install <tarball>|up|down|logs|status` (portable Jellyfin 12.1 under `.agent/jf-native/`, port 8096, admin `jellywled`/`jellywled`; preferred here because Docker pulls are slow on this link) or `tools/local_jellyfin.sh up|down|logs` (Docker `jellyfin/jellyfin:12.1`, port 8097). Both copy/mount `dist/plugin` as `Jelly-WLED_dev`; run `tools/package_plugin.sh` then restart to reload the plugin.
+- End-to-end without hardware: `tools/ddp_sim.py` + `tools/e2e_local.py` (see README). The full chain used before a prod deploy is `.agent/e2e/verify_and_deploy.sh` (build, tests, package, local restart, two e2e scenarios, headless dashboard check, deploy only when prod is idle).
 - WLED simulator: `python3 tools/ddp_sim.py --top 32 --right 18 --bottom 32 --left 18 --http-port 8080`.
 - Android: `cd android && ./gradlew assembleDebug` (wrap with `aw run --class build`), install with `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk`. Claim the device first: `devlock claim <id> --why '...'`.
 - Prod deploy: see `docs/DEPLOY.md`. Never restart the prod container while `GET /Sessions` shows active playback.

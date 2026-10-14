@@ -58,12 +58,12 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="RingWidth">Ring width (zones)</label>
-                        <input id="RingWidth" type="number" is="emby-input" min="4" max="256" />
+                        <input id="RingWidth" type="number" is="emby-input" min="4" max="128" />
                         <div class="fieldDescription">Number of zones along the top and bottom edges (4-256). Changing this invalidates existing tracks.</div>
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="RingHeight">Ring height (zones)</label>
-                        <input id="RingHeight" type="number" is="emby-input" min="4" max="256" />
+                        <input id="RingHeight" type="number" is="emby-input" min="3" max="72" />
                         <div class="fieldDescription">Number of zones along the left and right edges (4-256). Changing this invalidates existing tracks.</div>
                     </div>
                     <div class="inputContainer">
@@ -113,8 +113,8 @@
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="MaxConcurrentAnalyses">Maximum concurrent analyses</label>
-                        <input id="MaxConcurrentAnalyses" type="number" is="emby-input" min="1" max="8" />
-                        <div class="fieldDescription">How many analyses may run at the same time (1-8).</div>
+                        <input id="MaxConcurrentAnalyses" type="number" is="emby-input" min="1" max="4" />
+                        <div class="fieldDescription">How many analyses may run at the same time (1-4). Takes effect after a server restart.</div>
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="CacheDirectory">Cache directory</label>

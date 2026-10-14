@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded TV outline inside a glow ring, drawn within the 66 dp safe zone of the 108 dp adaptive icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Glow ring -->
+    <path
+        android:pathData="M54,23a31,31 0,1 1,0 62a31,31 0,1 1,0 -62z"
+        android:strokeWidth="4.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="26"
+                android:startY="28"
+                android:endX="82"
+                android:endY="80">
+                <item android:offset="0" android:color="#FFFF7A18" />
+                <item android:offset="0.5" android:color="#FFAF002D" />
+                <item android:offset="1" android:color="#FF319197" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- TV screen outline -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M40,42h28a4,4 0,0 1,4 4v16a4,4 0,0 1,-4 4h-28a4,4 0,0 1,-4 -4v-16a4,4 0,0 1,4 -4z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFF4F4F8" />
+    <!-- Stand -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M47,71h14"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFF4F4F8" />
+</vector>

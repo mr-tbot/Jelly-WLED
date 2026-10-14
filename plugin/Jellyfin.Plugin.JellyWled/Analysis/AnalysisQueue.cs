@@ -113,9 +113,37 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
             return Enqueue(itemId, mediaSourceId, fromMs, reason);
         }
 
+        if (existing.State == "queued")
+        {
+            existing.FromMs = Math.Max(0, fromMs); // not started yet: just move its start
+            return existing;
+        }
+
         existing.RetargetFromMs = fromMs;
         existing.Cancellation.Cancel();
         return existing;
+    }
+
+    /// <summary>
+    /// Counts the jobs a user has pending (for the API rate limit).
+    /// </summary>
+    /// <param name="userId">User id.</param>
+    /// <returns>Queued or running jobs requested by that user.</returns>
+    public int PendingFor(Guid userId) => _byKey.Values.Count(j => j.RequestedBy == userId);
+
+    /// <summary>
+    /// Waits until a job has left the queue (done, failed, skipped or canceled).
+    /// </summary>
+    /// <param name="job">The job.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>A task.</returns>
+    public async Task WaitAsync(AnalysisJob job, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        while (_byKey.TryGetValue(job.Key, out var current) && ReferenceEquals(current, job))
+        {
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -171,7 +199,26 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
         _slots.Dispose();
     }
 
-    private static string KeyOf(Guid itemId, string? mediaSourceId) => $"{itemId:N}|{mediaSourceId ?? string.Empty}";
+    private static string KeyOf(Guid itemId, string? mediaSourceId) => $"{itemId:N}|{TrackStore.NormalizeMediaSourceId(mediaSourceId) ?? string.Empty}";
+
+    /// <summary>
+    /// Rebuilds the ffmpeg crop filter stored in a segment header (per mille of the source) for a source file.
+    /// The pixel size is recovered from the per mille values on the next analysis, so a probe is not needed;
+    /// an empty string means "no crop".
+    /// </summary>
+    private static string CropFilter(SegmentHeader h, ResolvedSource source)
+    {
+        _ = source;
+        if (h.CropW >= 1000 && h.CropH >= 1000)
+        {
+            return string.Empty;
+        }
+
+        // ffmpeg accepts expressions in the input size: crop=w:h:x:y with iw/ih.
+        return string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"crop=iw*{h.CropW}/1000:ih*{h.CropH}/1000:iw*{h.CropX}/1000:ih*{h.CropY}/1000");
+    }
 
     private async Task WorkerAsync(CancellationToken stopping)
     {
@@ -184,6 +231,11 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
                 {
                     await RunAsync(job, stopping).ConfigureAwait(false);
                 }
+                catch (Exception ex)
+                {
+                    // RunAsync handles its own failures; this guards the worker against anything unexpected.
+                    _logger.LogWarning(ex, "[JellyWled] Analysis worker caught an unexpected error");
+                }
                 finally
                 {
                     _slots.Release();
@@ -194,10 +246,17 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
                     {
                     }
 
-                    Progress?.Invoke(job);
-                    if (job.RetargetFromMs is { } retarget && !stopping.IsCancellationRequested)
+                    Notify(job);
+                    try
                     {
-                        Enqueue(job.ItemId, job.MediaSourceId, retarget, job.State == "done" ? "backfill" : "seek");
+                        if (job.RetargetFromMs is { } retarget && !stopping.IsCancellationRequested)
+                        {
+                            Enqueue(job.ItemId, job.MediaSourceId, retarget, job.State == "done" ? "backfill" : "seek");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[JellyWled] Follow-up analysis could not be queued");
                     }
                 }
             }
@@ -205,6 +264,18 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
         catch (OperationCanceledException)
         {
             // stopping
+        }
+    }
+
+    private void Notify(AnalysisJob job)
+    {
+        try
+        {
+            Progress?.Invoke(job);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "[JellyWled] Analysis progress subscriber failed");
         }
     }
 
@@ -226,16 +297,20 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
 
             job.ItemName = source.Name;
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-            var fps = Math.Clamp(cfg.AnalysisFps, 1, 60);
+            var fps = cfg.EffectiveFps;
             var startFrame = job.FromMs * fps / 1000;
             var expectedTotal = source.RunTimeTicks > 0 ? (long)Math.Floor(source.RunTimeTicks / 10_000_000.0 * fps) : 0;
-
-            // Gap analysis: skip what is already covered from the start position; stop at the next existing segment.
-            var segments = _store.ListSegments(source.ItemId, source.MediaSourceId);
-            var covering = segments.FirstOrDefault(s => s.IsFinalized && s.Contains(startFrame));
-            if (covering is not null)
+            if (expectedTotal > 0)
             {
-                startFrame = covering.EndFrame;
+                startFrame = Math.Min(startFrame, expectedTotal);
+            }
+
+            // Gap analysis: skip everything already covered from the start position; stop at the next existing segment.
+            var segments = _store.ListSegments(source.ItemId, source.MediaSourceId);
+            var reach = TrackStore.CoveredFrom(segments, startFrame);
+            if (reach > startFrame)
+            {
+                startFrame = reach;
                 if (expectedTotal > 0 && startFrame >= expectedTotal - fps)
                 {
                     job.State = "skipped";
@@ -249,6 +324,9 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
                 .Select(s => (long?)s.StartFrame)
                 .DefaultIfEmpty(null)
                 .Min();
+            var knownCrop = segments.Count > 0
+                ? new CropInfo(segments[0].Header.CropX, segments[0].Header.CropY, segments[0].Header.CropW, segments[0].Header.CropH, CropFilter(segments[0].Header, source))
+                : null;
             job.StartFrame = startFrame;
             job.ExpectedFrames = endFrame is not null ? endFrame.Value - startFrame : Math.Max(0, expectedTotal - startFrame);
             _logger.LogInformation("[JellyWled] Analyzing {Name} from frame {Start} ({Reason})", source.Name, startFrame, job.Reason);
@@ -261,9 +339,10 @@ public sealed class AnalysisQueue : IHostedService, IDisposable
                 done =>
                 {
                     job.DoneFrames = done;
-                    Progress?.Invoke(job);
+                    Notify(job);
                 },
-                ct).ConfigureAwait(false);
+                ct,
+                knownCrop).ConfigureAwait(false);
             job.DoneFrames = frames;
             job.State = "done";
             _logger.LogInformation("[JellyWled] Analyzed {Name}: {Frames} frames from frame {Start}", source.Name, frames, startFrame);

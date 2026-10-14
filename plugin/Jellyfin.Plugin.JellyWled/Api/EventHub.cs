@@ -110,9 +110,9 @@ public sealed class EventHub : IHostedService
         {
             serverTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             pluginVersion = Plugin.Instance?.Version.ToString() ?? "0",
-            analysisFps = cfg.AnalysisFps,
-            ringW = cfg.RingWidth,
-            ringH = cfg.RingHeight,
+            analysisFps = cfg.EffectiveFps,
+            ringW = cfg.EffectiveRingWidth,
+            ringH = cfg.EffectiveRingHeight,
         };
     }
 

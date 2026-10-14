@@ -23,7 +23,6 @@ public class AnalyzeLibraryTask : IScheduledTask, IConfigurableScheduledTask
 {
     private readonly ILibraryManager _library;
     private readonly MediaResolver _resolver;
-    private readonly FfmpegAnalyzer _analyzer;
     private readonly TrackStore _store;
     private readonly AnalysisQueue _queue;
     private readonly ILogger<AnalyzeLibraryTask> _logger;
@@ -33,15 +32,13 @@ public class AnalyzeLibraryTask : IScheduledTask, IConfigurableScheduledTask
     /// </summary>
     /// <param name="library">Library manager.</param>
     /// <param name="resolver">Media resolver.</param>
-    /// <param name="analyzer">Analyzer.</param>
     /// <param name="store">Track store.</param>
     /// <param name="queue">Analysis queue (to avoid double work).</param>
     /// <param name="logger">Logger.</param>
-    public AnalyzeLibraryTask(ILibraryManager library, MediaResolver resolver, FfmpegAnalyzer analyzer, TrackStore store, AnalysisQueue queue, ILogger<AnalyzeLibraryTask> logger)
+    public AnalyzeLibraryTask(ILibraryManager library, MediaResolver resolver, TrackStore store, AnalysisQueue queue, ILogger<AnalyzeLibraryTask> logger)
     {
         _library = library;
         _resolver = resolver;
-        _analyzer = analyzer;
         _store = store;
         _queue = queue;
         _logger = logger;
@@ -111,10 +108,14 @@ public class AnalyzeLibraryTask : IScheduledTask, IConfigurableScheduledTask
             Recursive = true,
             OrderBy = [(ItemSortBy.DateCreated, cfg.TaskNewestFirst ? SortOrder.Descending : SortOrder.Ascending)],
         };
+        // The dashboard stores CollectionFolder ids; queries filter on the physical top folders behind them.
         var libraryIds = cfg.TaskLibraryIds.Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToArray();
         if (libraryIds.Length > 0)
         {
-            query.TopParentIds = libraryIds;
+            query.TopParentIds = libraryIds
+                .SelectMany(id => _library.GetItemById<BaseItem>(id) is CollectionFolder cf ? cf.PhysicalFolderIds.ToArray() : [id])
+                .Distinct()
+                .ToArray();
         }
 
         var items = _library.GetItemList(query);
@@ -143,27 +144,27 @@ public class AnalyzeLibraryTask : IScheduledTask, IConfigurableScheduledTask
                 continue;
             }
 
-            // Produce whatever is missing from the start; the analyzer stops at the first existing finalized segment.
-            var next = info.Segments.Where(s => s.IsFinalized && s.StartFrame > 0).Select(s => (long?)s.StartFrame).DefaultIfEmpty(null).Min();
-            var startFrame = info.Segments.FirstOrDefault(s => s.IsFinalized && s.StartFrame == 0)?.EndFrame ?? 0;
-            if (next is not null && startFrame >= next.Value)
+            // Produce whatever is missing from the first uncovered frame; the queue stops at the next existing segment.
+            var startFrame = TrackStore.CoveredFrom(info.Segments, 0);
+            if (info.ExpectedFrames > 0 && startFrame >= info.ExpectedFrames - cfg.EffectiveFps)
             {
                 continue;
             }
 
-            try
+            // Everything goes through the queue so the task never writes the same segment as an on-demand job
+            // and the concurrency limit holds.
+            var job = _queue.Enqueue(item.Id, source.MediaSourceId, (long)(startFrame * 1000.0 / cfg.EffectiveFps), "task");
+            if (job is null)
             {
-                _logger.LogInformation("[JellyWled] Task analyzing {Name}", source.Name);
-                await _analyzer.AnalyzeAsync(source, _store, startFrame, next, null, cancellationToken).ConfigureAwait(false);
+                _logger.LogWarning("[JellyWled] Task could not queue {Name} (queue full); stopping this run", source.Name);
+                break;
+            }
+
+            _logger.LogInformation("[JellyWled] Task queued {Name} from frame {Start}", source.Name, startFrame);
+            await _queue.WaitAsync(job, cancellationToken).ConfigureAwait(false);
+            if (job.State == "done")
+            {
                 done++;
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[JellyWled] Task failed to analyze {Name}", source.Name);
             }
         }
 

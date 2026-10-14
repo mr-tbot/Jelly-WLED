@@ -1,8 +1,8 @@
 const PLUGIN_ID = '7568fce5-c039-4d52-952f-38487b033df0';
 
 const ANALYSIS_NUM = {
-    AnalysisFps: [1, 30, 10], RingWidth: [4, 256, 32], RingHeight: [4, 256, 18], BandPercent: [1, 50, 8],
-    AnalysisThreads: [1, 16, 2], MaxConcurrentAnalyses: [1, 8, 1], TaskMaxItemsPerRun: [0, 100000, 50]
+    AnalysisFps: [1, 30, 10], RingWidth: [4, 128, 32], RingHeight: [3, 72, 18], BandPercent: [1, 50, 8],
+    AnalysisThreads: [1, 16, 2], MaxConcurrentAnalyses: [1, 4, 1], TaskMaxItemsPerRun: [0, 100000, 50]
 };
 const BOOLS = ['DetectLetterbox', 'AnalyzeOnPlayback', 'AnalyzeNewItems', 'LowPriority', 'FastDecode',
     'TaskIncludeMovies', 'TaskIncludeEpisodes', 'TaskNewestFirst', 'EnableServerOutput'];
@@ -88,7 +88,7 @@ function deviceHtml(dev, lists) {
 }
 
 function defaultDevice() {
-    const d = { Id: crypto.randomUUID(), FollowDeviceIds: [], FollowUserIds: [], Enabled: true, RestoreState: true, FollowAllSessions: false };
+    const d = { Id: newId(), FollowDeviceIds: [], FollowUserIds: [], Enabled: true, RestoreState: true, FollowAllSessions: false };
     DEVICE_FIELDS.forEach((f) => { if (f[4] && f[4].def !== undefined) d[f[0]] = f[4].def; });
     return d;
 }
@@ -105,6 +105,21 @@ function readDevice(el) {
     });
     return dev;
 }
+
+function newId() {
+    // crypto.randomUUID is only available in secure contexts; plain http dashboards (the common LAN setup) need the fallback.
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+
+let loadFailed = false;
 
 export default function (view, params) {
     const $ = (id) => view.querySelector('#' + id);
@@ -178,7 +193,7 @@ export default function (view, params) {
                 libraries: (Array.isArray(folders) ? folders : []).map((f) => [f.ItemId, f.Name])
             };
             fillConfig(cfg);
-        }).catch(() => window.Dashboard.alert('Could not load the Jelly-WLED configuration.')).then(() => window.Dashboard.hideLoadingMsg());
+        }).catch(() => { loadFailed = true; window.Dashboard.alert('Could not load the Jelly-WLED configuration. Saving is disabled until the page loads correctly.'); }).then(() => window.Dashboard.hideLoadingMsg());
     }
 
     function showResult(block, html) { block.querySelector('[data-role="result"]').innerHTML = html; }
@@ -210,6 +225,8 @@ export default function (view, params) {
     }
 
     function save(e) {
+
+        if (loadFailed) { window.Dashboard.alert('The page did not load correctly; reload it before saving.'); return; }
         e.preventDefault();
         const a = api();
         window.Dashboard.showLoadingMsg();

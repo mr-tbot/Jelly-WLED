@@ -63,11 +63,20 @@ public sealed partial class TrackStore : IDisposable
     public string ItemDirectory(Guid itemId, string? mediaSourceId)
     {
         var item = itemId.ToString("N", CultureInfo.InvariantCulture);
-        var source = string.IsNullOrWhiteSpace(mediaSourceId) || string.Equals(mediaSourceId, item, StringComparison.OrdinalIgnoreCase)
+        var normalized = NormalizeMediaSourceId(mediaSourceId);
+        var source = string.IsNullOrWhiteSpace(normalized) || string.Equals(normalized, item, StringComparison.OrdinalIgnoreCase)
             ? "default"
-            : SafeName().Replace(mediaSourceId, "_");
+            : SafeName().Replace(normalized, "_");
         return Path.Combine(RootDirectory, item, source);
     }
+
+    /// <summary>
+    /// Normalizes a media source id: Guids become 32 hex digits so dashed and undashed forms share one track.
+    /// </summary>
+    /// <param name="mediaSourceId">Raw id.</param>
+    /// <returns>Normalized id (null stays null).</returns>
+    public static string? NormalizeMediaSourceId(string? mediaSourceId)
+        => mediaSourceId is not null && Guid.TryParse(mediaSourceId, out var g) ? g.ToString("N", CultureInfo.InvariantCulture) : mediaSourceId;
 
     /// <summary>
     /// Gets the segment path for a start frame.
@@ -104,7 +113,7 @@ public sealed partial class TrackStore : IDisposable
             {
                 var reader = GetReader(file);
                 var h = reader.Header;
-                if (h.RingWidth != cfg.RingWidth || h.RingHeight != cfg.RingHeight || h.Fps != cfg.AnalysisFps)
+                if (h.RingWidth != cfg.EffectiveRingWidth || h.RingHeight != cfg.EffectiveRingHeight || h.Fps != cfg.EffectiveFps)
                 {
                     continue;
                 }
@@ -134,17 +143,46 @@ public sealed partial class TrackStore : IDisposable
     {
         var cfg = Config;
         var segments = ListSegments(itemId, mediaSourceId);
-        var expected = runTimeTicks is > 0 ? (long)Math.Floor(runTimeTicks.Value / 10_000_000.0 * cfg.AnalysisFps) : 0;
+        var fps = cfg.EffectiveFps;
+        var expected = runTimeTicks is > 0 ? (long)Math.Floor(runTimeTicks.Value / 10_000_000.0 * fps) : 0;
         var frames = segments.Sum(s => s.ReadableFrames);
         var state = TrackState.None;
         if (frames > 0)
         {
-            // Complete when one finalized segment starts at 0 and reaches the expected end (allow one second of slack).
-            var covers = segments.Any(s => s.IsFinalized && s.StartFrame == 0 && (expected == 0 || s.EndFrame >= expected - cfg.AnalysisFps));
+            // Complete when the union of finalized segments runs from 0 to the expected end (one second of slack).
+            var reach = CoveredFrom(segments, 0);
+            var covers = reach > 0 && expected > 0 && reach >= expected - fps;
             state = covers ? TrackState.Complete : TrackState.Partial;
         }
 
-        return new TrackInfo(state, cfg.AnalysisFps, cfg.RingWidth, cfg.RingHeight, expected, frames, segments);
+        return new TrackInfo(state, fps, cfg.EffectiveRingWidth, cfg.EffectiveRingHeight, expected, frames, segments);
+    }
+
+    /// <summary>
+    /// Follows finalized segments from a frame and returns the first frame not covered (or <paramref name="frame"/> itself).
+    /// </summary>
+    /// <param name="segments">Segments of the item.</param>
+    /// <param name="frame">Start frame.</param>
+    /// <returns>The first uncovered frame at or after <paramref name="frame"/>.</returns>
+    public static long CoveredFrom(IReadOnlyList<SegmentInfo> segments, long frame)
+    {
+        ArgumentNullException.ThrowIfNull(segments);
+        var reach = frame;
+        bool advanced;
+        do
+        {
+            advanced = false;
+            foreach (var s in segments)
+            {
+                if (s.IsFinalized && s.StartFrame <= reach && s.EndFrame > reach)
+                {
+                    reach = s.EndFrame;
+                    advanced = true;
+                }
+            }
+        }
+        while (advanced);
+        return reach;
     }
 
     /// <summary>
@@ -240,15 +278,33 @@ public sealed partial class TrackStore : IDisposable
             try
             {
                 var isPart = file.EndsWith(".part", StringComparison.Ordinal);
-                if (isPart && now - File.GetLastWriteTimeUtc(file) < partMaxAge)
+                if (isPart)
                 {
+                    // Old part files are deleted by age without opening them (they may be unparseable).
+                    if (now - File.GetLastWriteTimeUtc(file) >= partMaxAge)
+                    {
+                        ForgetReader(file);
+                        File.Delete(file);
+                        deleted++;
+                    }
+
                     continue;
                 }
 
-                var reader = GetReader(file);
-                var h = reader.Header;
-                var stale = h.RingWidth != cfg.RingWidth || h.RingHeight != cfg.RingHeight || h.Fps != cfg.AnalysisFps;
-                if (stale || isPart)
+                SegmentHeader h;
+                try
+                {
+                    h = GetReader(file).Header;
+                }
+                catch (InvalidDataException)
+                {
+                    ForgetReader(file);
+                    File.Delete(file);
+                    deleted++;
+                    continue;
+                }
+
+                if (h.RingWidth != cfg.EffectiveRingWidth || h.RingHeight != cfg.EffectiveRingHeight || h.Fps != cfg.EffectiveFps)
                 {
                     ForgetReader(file);
                     File.Delete(file);
@@ -331,6 +387,16 @@ public sealed partial class TrackStore : IDisposable
             if (_scans.TryGetValue(dir, out var cached) && DateTime.UtcNow - cached.At < TimeSpan.FromSeconds(1))
             {
                 return cached.Files;
+            }
+
+            if (_scans.Count > 256)
+            {
+                // Bounded: a caller can ask about directories that never exist; drop anything older than a few seconds.
+                var cutoff = DateTime.UtcNow - TimeSpan.FromSeconds(10);
+                foreach (var key in _scans.Where(kv => kv.Value.At < cutoff).Select(kv => kv.Key).ToList())
+                {
+                    _scans.Remove(key);
+                }
             }
 
             var files = new List<string>();
