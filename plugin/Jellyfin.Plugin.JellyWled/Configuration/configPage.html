@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Jelly-WLED</title>
+    <style>
+        .jw-device { margin-bottom: 2em; padding: 1em; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; }
+        .jw-row { display: flex; gap: 1em; flex-wrap: wrap; }
+        .jw-row > * { flex: 1 1 12em; }
+        .jw-buttons { display: flex; gap: 0.5em; flex-wrap: wrap; margin: 1em 0 0.5em; }
+        .jw-result { margin: 0.5em 0; }
+    </style>
+</head>
+<body>
+    <div id="JellyWledConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox" data-controller="__plugin/JellyWledConfig.js">
+        <div data-role="content">
+            <div class="content-primary">
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">Jelly-WLED</h2>
+                    <p>Jelly-WLED turns what is on screen into ambient light. It analyzes your videos into edge-color tracks, drives WLED nodes directly from this server, and serves the same tracks to bridge apps. Every setting on this page is saved to the plugin configuration file.</p>
+                </div>
+
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">Status</h2>
+                    <p id="jwSummary">Loading...</p>
+                    <h3>Devices</h3>
+                    <div id="jwStatusDevices"></div>
+                    <h3>Followed sessions</h3>
+                    <div id="jwStatusSessions"></div>
+                    <h3>Analysis jobs</h3>
+                    <div id="jwStatusJobs"></div>
+                    <h3>Recently finished jobs</h3>
+                    <div id="jwStatusRecent"></div>
+                    <h3>Delete a track</h3>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="jwDeleteId">Item id</label>
+                        <input id="jwDeleteId" type="text" is="emby-input" />
+                        <div class="fieldDescription">Deletes the cached track of this item and cancels its analysis, so it is analyzed again the next time it is needed.</div>
+                    </div>
+                    <button is="emby-button" type="button" id="jwDeleteTrack" class="raised button emby-button"><span>Delete track</span></button>
+                    <div id="jwDeleteResult" class="jw-result"></div>
+                </div>
+
+                <form id="JellyWledConfigForm">
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Devices</h2>
+                        <p>WLED nodes driven by this server. Add as many as you like. Save before using Probe on a saved device or the test buttons: a test only works on a device that is saved, enabled, and has a host, while server output is on.</p>
+                        <div id="jwDevices"></div>
+                        <button is="emby-button" type="button" id="jwAddDevice" class="raised button emby-button"><span>Add device</span></button>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Analysis</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="AnalysisFps">Analysis frames per second</label>
+                        <input id="AnalysisFps" type="number" is="emby-input" min="1" max="30" />
+                        <div class="fieldDescription">How many ring frames per second the analyzer stores (1-30). Changing this invalidates existing tracks, so they are analyzed again.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RingWidth">Ring width (zones)</label>
+                        <input id="RingWidth" type="number" is="emby-input" min="4" max="256" />
+                        <div class="fieldDescription">Number of zones along the top and bottom edges (4-256). Changing this invalidates existing tracks.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RingHeight">Ring height (zones)</label>
+                        <input id="RingHeight" type="number" is="emby-input" min="4" max="256" />
+                        <div class="fieldDescription">Number of zones along the left and right edges (4-256). Changing this invalidates existing tracks.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="BandPercent">Edge band depth (%)</label>
+                        <input id="BandPercent" type="number" is="emby-input" min="1" max="50" />
+                        <div class="fieldDescription">How deep into the picture each edge is sampled, as a percentage of the picture height (1-50).</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="DetectLetterbox" type="checkbox" is="emby-checkbox" />
+                            <span>Detect letterbox bars</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Crop black bars before analysis so the edges follow the actual picture instead of the bars.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AnalyzeOnPlayback" type="checkbox" is="emby-checkbox" />
+                            <span>Analyze when playback starts</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">When someone plays an item that has no track yet, analyze it right away. The lights start as soon as the first part is ready.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="AnalyzeNewItems" type="checkbox" is="emby-checkbox" />
+                            <span>Analyze new items automatically</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Queue items for analysis as they are added to the library.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="AnalysisThreads">Decode threads per analysis</label>
+                        <input id="AnalysisThreads" type="number" is="emby-input" min="1" max="16" />
+                        <div class="fieldDescription">Number of ffmpeg decode threads used by one analysis (1-16).</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="LowPriority" type="checkbox" is="emby-checkbox" />
+                            <span>Low CPU and I/O priority</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Run ffmpeg with the lowest CPU and disk priority (nice and ionice on Linux) so playback and transcoding are not disturbed.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="FastDecode" type="checkbox" is="emby-checkbox" />
+                            <span>Fast decode</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Skip some decoding work for speed. Colors become slightly less accurate.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxConcurrentAnalyses">Maximum concurrent analyses</label>
+                        <input id="MaxConcurrentAnalyses" type="number" is="emby-input" min="1" max="8" />
+                        <div class="fieldDescription">How many analyses may run at the same time (1-8).</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CacheDirectory">Cache directory</label>
+                        <input id="CacheDirectory" type="text" is="emby-input" />
+                        <div class="fieldDescription">Where analyzed tracks are stored. Leave empty to use the default, data/jellywled/tracks inside the Jellyfin data directory.</div>
+                    </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Scheduled task</h2>
+                        <p>The task "Analyze library for Jelly-WLED" under Dashboard &gt; Scheduled Tasks creates tracks ahead of time using these settings.</p>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="TaskIncludeMovies" type="checkbox" is="emby-checkbox" />
+                            <span>Include movies</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">The scheduled task analyzes movies.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="TaskIncludeEpisodes" type="checkbox" is="emby-checkbox" />
+                            <span>Include episodes</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">The scheduled task analyzes episodes.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TaskMaxItemsPerRun">Maximum items per run</label>
+                        <input id="TaskMaxItemsPerRun" type="number" is="emby-input" min="0" max="100000" />
+                        <div class="fieldDescription">How many items one run analyzes. 0 means no limit.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="TaskNewestFirst" type="checkbox" is="emby-checkbox" />
+                            <span>Newest first</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Work through the most recently added items first.</div>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="TaskLibraryIds">Libraries</label>
+                        <select is="emby-select" id="TaskLibraryIds" multiple class="emby-select-withcolor emby-select"></select>
+                        <div class="fieldDescription">Limit the task to these libraries. Select none to analyze all libraries.</div>
+                    </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Server output</h2>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableServerOutput" type="checkbox" is="emby-checkbox" />
+                            <span>Enable server output</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Off: the server only serves tracks and events to bridge apps.</div>
+                    </div>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button"><span>Save</span></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
